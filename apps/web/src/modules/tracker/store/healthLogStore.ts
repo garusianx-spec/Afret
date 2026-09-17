@@ -1,0 +1,92 @@
+'use client';
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
+import { createId } from '@/lib/utils';
+
+export type LogKind =
+  | 'weight'
+  | 'glucose'
+  | 'bloodPressure'
+  | 'mood'
+  | 'nausea'
+  | 'symptom';
+
+export interface HealthLog {
+  id: string;
+  kind: LogKind;
+  /** ISO timestamp of the reading, not of the entry. */
+  at: string;
+  /** Primary numeric value — kg, mg/dL, systolic, or a 1–5 scale. */
+  value: number;
+  /** Diastolic, for blood pressure. */
+  value2?: number;
+  /** Free-text symptom name, or the meal context for a glucose reading. */
+  label?: string;
+  note?: string;
+}
+
+export const LOG_META: Record<
+  LogKind,
+  { label: string; unit: string; step: number; min: number; max: number }
+> = {
+  weight: { label: 'وزن', unit: 'کیلوگرم', step: 0.1, min: 30, max: 200 },
+  glucose: { label: 'قند خون', unit: 'میلی‌گرم/دسی‌لیتر', step: 1, min: 40, max: 400 },
+  bloodPressure: { label: 'فشار خون', unit: 'میلی‌متر جیوه', step: 1, min: 50, max: 220 },
+  mood: { label: 'حال و خلق‌وخو', unit: '', step: 1, min: 1, max: 5 },
+  nausea: { label: 'شدت تهوع', unit: '', step: 1, min: 0, max: 4 },
+  symptom: { label: 'علائم', unit: '', step: 1, min: 0, max: 1 },
+};
+
+/** Glucose targets in pregnancy (mg/dL) — the gestational-diabetes view. */
+export const GLUCOSE_TARGETS = {
+  fasting: { max: 95, label: 'ناشتا' },
+  oneHour: { max: 140, label: '۱ ساعت پس از غذا' },
+  twoHour: { max: 120, label: '۲ ساعت پس از غذا' },
+} as const;
+
+export type GlucoseContext = keyof typeof GLUCOSE_TARGETS;
+
+interface HealthLogState {
+  logs: HealthLog[];
+  add: (log: Omit<HealthLog, 'id'>) => void;
+  remove: (id: string) => void;
+  /** Newest first, optionally filtered by kind. */
+  byKind: (kind: LogKind) => HealthLog[];
+}
+
+export const useHealthLogStore = create<HealthLogState>()(
+  persist(
+    (set, get) => ({
+      logs: [],
+      add: (log) =>
+        set((state) => ({ logs: [{ ...log, id: createId('log') }, ...state.logs] })),
+      remove: (id) => set((state) => ({ logs: state.logs.filter((l) => l.id !== id) })),
+      byKind: (kind) =>
+        get()
+          .logs.filter((l) => l.kind === kind)
+          .sort((a, b) => Date.parse(b.at) - Date.parse(a.at)),
+    }),
+    {
+      name: 'afrat-health-logs',
+      storage: createJSONStorage(() => localStorage),
+      version: 1,
+    },
+  ),
+);
+
+/** Flags a reading that exceeds its pregnancy target. */
+export function isGlucoseHigh(value: number, context: GlucoseContext): boolean {
+  return value > GLUCOSE_TARGETS[context].max;
+}
+
+/** Hypertension screening thresholds used in prenatal care. */
+export function bloodPressureFlag(
+  systolic: number,
+  diastolic: number,
+): 'normal' | 'elevated' | 'high' {
+  if (systolic >= 140 || diastolic >= 90) return 'high';
+  if (systolic >= 130 || diastolic >= 85) return 'elevated';
+  return 'normal';
+}

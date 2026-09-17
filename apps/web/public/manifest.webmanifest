@@ -1,0 +1,85 @@
+{
+  "id": "/?source=pwa",
+  "name": "آفرت — همراه سلامت مادر و کودک",
+  "short_name": "آفرت",
+  "description": "ردیابی قاعدگی و بارداری، تغذیهٔ تخصصی، مراقبت از نوزاد و گفتگو با متخصصان.",
+  "lang": "fa-IR",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#F8F7FC",
+  "theme_color": "#F8F7FC",
+  "categories": ["health", "lifestyle", "medical"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home-narrow.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "داشبورد امروز"
+    },
+    {
+      "src": "/screenshots/chat-narrow.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "گفتگو با پزشک"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "ثبت علائم امروز",
+      "short_name": "ثبت علائم",
+      "url": "/tracker?source=shortcut#symptoms",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "گفتگو با پزشک",
+      "short_name": "مشاوره",
+      "url": "/chat?source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "برنامهٔ غذایی",
+      "short_name": "تغذیه",
+      "url": "/nutrition?source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

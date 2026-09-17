@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="آفرت">
+  <title>آفرت</title>
+  <defs>
+    <linearGradient id="afrat-bg" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9C88FF"/>
+      <stop offset="1" stop-color="#7A36D9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#afrat-bg)"/>
+
+  <!--
+    An open crescent cradling a seed: the act of holding something new.
+    The crescent is one circle with a second, offset circle subtracted
+    (fill-rule: evenodd), which keeps the mark a single clean path.
+  -->
+  <path
+    fill="#FFFFFF"
+    fill-rule="evenodd"
+    d="M256 110a152 152 0 1 0 0 304 152 152 0 1 0 0-304Z
+       M304 122a116 116 0 1 1 0 232 116 116 0 1 1 0-232Z"
+  />
+
+  <circle cx="300" cy="244" r="54" fill="#FFAAA6"/>
+</svg>

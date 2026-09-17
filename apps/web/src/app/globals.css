@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ *
+ * Typography — IranYekan X Variable
+ *
+ * The font is commercially licensed and therefore NOT committed to this
+ * repository. Drop `IRANYekanX-VF.woff2` into `public/fonts/` (see the
+ * README there) and this face activates automatically. Until then the
+ * stack falls back to Vazirmatn / system Persian faces so the RTL metrics
+ * stay close and nothing renders in Latin-first Helvetica.
+ * ------------------------------------------------------------------ */
+@font-face {
+  font-family: 'IRANYekanX';
+  src: url('/fonts/IRANYekanX-VF.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  /* Persian + Arabic-Indic digits + Latin basics. */
+  unicode-range: U+0600-06FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF, U+0020-007F;
+}
+
+:root {
+  --afrat-font-sans: 'IRANYekanX', 'Vazirmatn', 'IRANSans', 'Segoe UI', Tahoma,
+    system-ui, sans-serif;
+
+  /* Channel triplets so Tailwind can apply <alpha-value>. */
+  --afrat-primary: 156 136 255; /* #9C88FF */
+  --afrat-primary-50: 248 246 255;
+  --afrat-primary-100: 241 235 250; /* #F1EBFA — card border */
+  --afrat-primary-200: 220 210 252;
+  --afrat-primary-deep: 122 54 217; /* #7A36D9 */
+
+  --afrat-coral: 255 170 166; /* #FFAAA6 */
+  --afrat-coral-soft: 255 236 234;
+
+  --afrat-mint: 72 187 120; /* #48BB78 */
+  --afrat-mint-soft: 232 248 238;
+
+  --afrat-surface: 248 247 252; /* #F8F7FC */
+  --afrat-surface-card: 255 255 255; /* #FFFFFF */
+  --afrat-surface-border: 241 235 250; /* #F1EBFA */
+
+  --afrat-ink: 45 43 63; /* #2D2B3F */
+  --afrat-ink-muted: 107 104 126; /* #6B687E */
+  --afrat-ink-faint: 155 152 172;
+}
+
+@layer base {
+  html {
+    /* Persian digits are rendered by `formatFa()`, but browser-generated
+       numbers (e.g. list markers) should follow suit. */
+    font-variant-numeric: normal;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface text-ink font-sans antialiased;
+    /* Prevent rubber-band scroll revealing the page behind the TWA shell. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Headings carry the darker contrast token, body text the muted one. */
+  h1, h2, h3, h4 {
+    @apply text-ink font-bold;
+    letter-spacing: 0;
+  }
+
+  /* RTL: never let long Latin tokens (URLs, IDs) break the layout. */
+  p, span, div {
+    overflow-wrap: anywhere;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-deep ring-offset-2 ring-offset-surface;
+  }
+
+  ::selection {
+    @apply bg-primary/25 text-ink;
+  }
+}
+
+@layer components {
+  .afrat-card {
+    @apply rounded-card border border-surface-border bg-surface-card shadow-card;
+  }
+
+  .afrat-tap {
+    /* Minimum comfortable touch target for one-handed phone use. */
+    @apply min-h-11 min-w-11 transition active:scale-[0.98];
+  }
+
+  /* Persistent bottom navigation must clear the Android gesture bar. */
+  .afrat-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px));
+  }
+
+  .afrat-safe-top {
+    padding-top: calc(env(safe-area-inset-top, 0px));
+  }
+
+  /* Page container: the tab bar is fixed, so reserve its height. */
+  .afrat-page {
+    @apply mx-auto w-full max-w-lg px-4;
+    padding-bottom: calc(theme('spacing.navbar') + env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  .afrat-scroll-hidden {
+    scrollbar-width: none;
+  }
+  .afrat-scroll-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

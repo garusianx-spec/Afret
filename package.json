@@ -1,0 +1,21 @@
+{
+  "name": "afrat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "آفرت — اپلیکیشن جامع سلامت مادر و زن (PWA + TWA)",
+  "workspaces": [
+    "apps/web",
+    "apps/realtime"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:realtime": "npm run dev --workspace=apps/realtime",
+    "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
