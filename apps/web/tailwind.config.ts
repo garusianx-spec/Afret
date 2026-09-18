@@ -30,7 +30,7 @@ const config: Config = {
           DEFAULT: 'rgb(var(--afrat-mint) / <alpha-value>)',
           soft: 'rgb(var(--afrat-mint-soft) / <alpha-value>)',
         },
-        // The logo's plum. Used by the brand mark only.
+        // Alias of `primary`, kept so brand surfaces read intentionally.
         brand: 'rgb(var(--afrat-brand) / <alpha-value>)',
         surface: {
           DEFAULT: 'rgb(var(--afrat-surface) / <alpha-value>)',
@@ -52,8 +52,9 @@ const config: Config = {
         pill: '999px',
       },
       boxShadow: {
-        card: '0 2px 8px -2px rgb(122 54 217 / 0.06), 0 8px 24px -12px rgb(122 54 217 / 0.12)',
-        raised: '0 4px 16px -4px rgb(122 54 217 / 0.14)',
+        // Tinted with the primary plum so elevation reads warm, not grey.
+        card: '0 2px 8px -2px rgb(145 61 101 / 0.06), 0 8px 24px -12px rgb(145 61 101 / 0.12)',
+        raised: '0 4px 16px -4px rgb(145 61 101 / 0.14)',
         nav: '0 -2px 20px -8px rgb(45 43 63 / 0.16)',
       },
       spacing: {

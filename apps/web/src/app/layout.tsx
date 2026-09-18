@@ -1,7 +1,9 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 import type { Metadata, Viewport } from 'next';
 
 import { Providers } from '@/components/providers/Providers';
-import { iranYekan } from '@/fonts';
 
 import './globals.css';
 
@@ -44,8 +46,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#F8F7FC' },
-    { media: '(prefers-color-scheme: dark)', color: '#F8F7FC' },
+    { media: '(prefers-color-scheme: light)', color: '#FAF7F9' },
+    { media: '(prefers-color-scheme: dark)', color: '#FAF7F9' },
   ],
   colorScheme: 'light',
   width: 'device-width',
@@ -57,11 +59,35 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+/**
+ * Preload only the weights that are actually on disk.
+ *
+ * The brand font is gitignored, so a fresh clone has none of these. An
+ * unconditional preload would then fire a 404 on every page load and print a
+ * console warning about an unused preload — noise that hides real problems.
+ * This runs on the server at build time for the static routes.
+ */
+const PRELOADED_FONTS = ['IRANYekanWeb-Regular.woff2', 'IRANYekanWeb-Bold.woff2'].filter(
+  (file) => existsSync(join(process.cwd(), 'public', 'fonts', file)),
+);
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fa-IR" dir="rtl" className={iranYekan.variable}>
+    <html lang="fa-IR" dir="rtl">
+      <head>
+        {PRELOADED_FONTS.map((file) => (
+          <link
+            key={file}
+            rel="preload"
+            href={`/fonts/${file}`}
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+          />
+        ))}
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

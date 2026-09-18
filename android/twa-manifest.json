@@ -5,13 +5,13 @@
   "launcherName": "آفرت",
   "display": "standalone",
   "orientation": "portrait",
-  "themeColor": "#F8F7FC",
-  "themeColorDark": "#F8F7FC",
-  "navigationColor": "#F8F7FC",
-  "navigationColorDark": "#F8F7FC",
-  "navigationDividerColor": "#F1EBFA",
-  "navigationDividerColorDark": "#F1EBFA",
-  "backgroundColor": "#F8F7FC",
+  "themeColor": "#FAF7F9",
+  "themeColorDark": "#FAF7F9",
+  "navigationColor": "#FAF7F9",
+  "navigationColorDark": "#FAF7F9",
+  "navigationDividerColor": "#F3E8EE",
+  "navigationDividerColorDark": "#F3E8EE",
+  "backgroundColor": "#FAF7F9",
   "enableNotifications": true,
   "startUrl": "/?source=twa",
   "iconUrl": "https://afrat.app/icons/icon-512.png",
@@ -42,10 +42,16 @@
   "webManifestUrl": "https://afrat.app/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {
-    "locationDelegation": { "enabled": false },
-    "playBilling": { "enabled": false }
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
   },
-  "alphaDependencies": { "enabled": false },
+  "alphaDependencies": {
+    "enabled": false
+  },
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,

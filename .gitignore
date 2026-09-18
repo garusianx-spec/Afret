@@ -32,12 +32,13 @@ android/local.properties
 android/*.apk
 android/*.aab
 
-# Brand fonts live in apps/web/src/fonts and ARE committed — the project
-# holds the IranYekan Web licence. This guards the old public path so a
-# duplicate copy cannot sneak back in.
+# IranYekan Web is commercially licensed and must not be redistributed.
+# Drop the files into apps/web/public/fonts/ locally — the app builds and runs
+# without them (see the README there), falling back to Vazirmatn/Tahoma.
 apps/web/public/fonts/*.woff2
 apps/web/public/fonts/*.woff
 apps/web/public/fonts/*.ttf
+apps/web/public/fonts/*.otf
 
 # Audio assets are large and separately licensed — see public/audio/README.md
 apps/web/public/audio/*.mp3

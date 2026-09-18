@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import * as authApi from './api/authApi';
+import { seedDemoData } from '@/modules/demo/seedDemoData';
 import { useUserStore } from '@/stores/userStore';
 
 import { setTokenProvider } from './lib/tokenBridge';
@@ -130,6 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useUserStore
       .getState()
       .adoptIdentity({ id: user.id, displayName: user.fullName });
+
+    // The demo account arrives with sample data so every tab has something to
+    // show. No-ops for every other account, and runs once per browser.
+    seedDemoData(user.mobile);
   }, [user]);
 
   const value = useMemo<AuthContextValue>(
@@ -152,6 +157,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Cached clinical data is per-account and must not survive into
           // whoever signs in next on a shared phone.
           useUserStore.getState().reset();
+          // Drop the demo marker too, so signing back in re-seeds rather than
+          // landing on empty tabs.
+          try {
+            localStorage.removeItem('afrat:demo-seeded-v1');
+          } catch {
+            /* private mode — nothing cached to clear */
+          }
         }
       },
     }),

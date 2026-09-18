@@ -8,7 +8,9 @@ import { env } from './env.js';
 import { authRoutes } from './http/authRoutes.js';
 import { chatRoutes } from './http/chatRoutes.js';
 import { pushRoutes } from './http/pushRoutes.js';
+import { seedDemoAccounts } from './auth/seed.js';
 import { userStore } from './auth/userStore.js';
+import { ensureDefaultMemberships } from './store/membershipStore.js';
 import { configurePush } from './push/webPush.js';
 import { createGateway } from './realtime/gateway.js';
 import type { ClientToServerEvents, ServerToClientEvents, SocketData } from './types.js';
@@ -98,6 +100,15 @@ await app.register(pushRoutes);
 
 if (!configurePush()) {
   app.log.warn('VAPID keys missing — web push notifications are disabled.');
+}
+
+// Demo accounts, so the app can be opened without registering. Gated out of
+// production unless ALLOW_DEMO_ACCOUNTS=true — see auth/seed.ts.
+await seedDemoAccounts((message) => app.log.info(message));
+for (const account of await Promise.all(
+  ['+989123456789', '+989123456780'].map((m) => userStore.findByMobile(m)),
+)) {
+  if (account) await ensureDefaultMemberships(account.id);
 }
 
 // Socket.io attaches to the same HTTP server, so one port serves both the REST

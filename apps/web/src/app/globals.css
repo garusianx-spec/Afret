@@ -3,37 +3,96 @@
 @tailwind utilities;
 
 /* ------------------------------------------------------------------ *
- * Typography
+ * Typography — IranYekan Web
  *
- * The IranYekan Web faces are loaded by `next/font/local` in
- * `src/fonts/index.ts`, which sets `--afrat-font-sans` on <html>. The value
- * below is only a safety net for contexts that render before (or without)
- * that class — e.g. a static error page.
+ * Declared here rather than through `next/font/local` on purpose. The font is
+ * commercially licensed and therefore gitignored, and `next/font` resolves
+ * its `src` paths at build time: a missing file would fail the build on every
+ * fresh clone. A plain `@font-face` simply falls through to the next family
+ * in the stack, so the app builds and runs with or without the licensed files.
+ *
+ * Drop the three `.woff2` files into `public/fonts/` and they activate with
+ * no code change. See the README there.
+ *
+ * `font-display: swap` shows fallback text immediately rather than blanking
+ * the screen on a slow connection — the right trade for a health app read on
+ * cellular.
  * ------------------------------------------------------------------ */
+@font-face {
+  font-family: 'IRANYekanWeb';
+  src: url('/fonts/IRANYekanWeb-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IRANYekanWeb';
+  src: url('/fonts/IRANYekanWeb-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IRANYekanWeb';
+  src: url('/fonts/IRANYekanWeb-Bold.woff2') format('woff2');
+  /* 600 maps here too — nothing in the design system asks for a semibold,
+     and an unmapped 600 would trigger synthetic bolding. */
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 
 :root {
-  --afrat-font-sans: 'Vazirmatn', 'IRANSans', Tahoma, system-ui, sans-serif;
+  --afrat-font-sans: 'IRANYekanWeb', 'Vazirmatn', 'IRANSans', Tahoma,
+    system-ui, sans-serif;
 
   /* Channel triplets so Tailwind can apply <alpha-value>. */
-  --afrat-primary: 156 136 255; /* #9C88FF */
-  --afrat-primary-50: 248 246 255;
-  --afrat-primary-100: 241 235 250; /* #F1EBFA — card border */
-  --afrat-primary-200: 220 210 252;
-  --afrat-primary-deep: 122 54 217; /* #7A36D9 */
 
-  --afrat-coral: 255 170 166; /* #FFAAA6 */
-  --afrat-coral-soft: 255 236 234;
+  /* ------------------------------------------------------------------ *
+   * Primary ramp — derived from the logo plum so the UI and the brand
+   * mark read as one thing. Every step was checked against WCAG AA:
+   *
+   *   white on primary        5.22:1
+   *   white on primary-deep   6.86:1
+   *   primary on surface      4.90:1
+   *   primary-deep on tint    5.94:1
+   *
+   * `primary` fills; `primary-deep` is for hover/active and for text on a
+   * tinted background, where plain `primary` lands at 4.52:1 — passing, but
+   * too close to the line to spend on body copy.
+   * ------------------------------------------------------------------ */
+  --afrat-primary: 170 76 122; /* #AA4C7A — logo plum */
+  --afrat-primary-deep: 145 61 101; /* #913D65 — hover / active / text-on-tint */
+  --afrat-primary-50: 253 245 248; /* #FDF5F8 — faintest wash */
+  --afrat-primary-100: 249 235 241; /* #F9EBF1 — soft cards, active tab badge */
+  --afrat-primary-200: 239 211 224; /* #EFD3E0 — borders and dividers */
+
+  /* Kept as an alias, not a second colour: the brand mark and the UI accent
+     are the same value now, and `text-brand` reads better at the logo. */
+  --afrat-brand: var(--afrat-primary);
+
+  /* Warning / warm highlight.
+   *
+   * Pushed from the old pink coral (#FFAAA6) into amber-orange when the
+   * primary became plum. The two soft tints had collided: #FFECEA against
+   * #F9EBF1 is a perceptual distance of 14, i.e. the same colour to the eye,
+   * which meant an out-of-range glucose row looked exactly like an ordinary
+   * plum chip. The new pair sits at 44 — unmissable, which is the entire job
+   * of a clinical warning. Both steps carry `text-ink` at 11.6:1 and 4.6:1. */
+  --afrat-coral: 232 118 63; /* #E8763F */
+  --afrat-coral-soft: 255 232 211; /* #FFE8D3 */
 
   --afrat-mint: 72 187 120; /* #48BB78 */
   --afrat-mint-soft: 232 248 238;
 
-  --afrat-surface: 248 247 252; /* #F8F7FC */
+  /* Surfaces carry a plum tint rather than the old lavender one, so a white
+     card still reads as a distinct layer above the page. */
+  --afrat-surface: 250 247 249; /* #FAF7F9 */
   --afrat-surface-card: 255 255 255; /* #FFFFFF */
-  --afrat-surface-border: 241 235 250; /* #F1EBFA */
-
-  /* Logo plum. Not a UI accent — it exists so the brand mark renders in its
-     own colour without anyone reaching for the lavender primary. */
-  --afrat-brand: 170 76 122; /* #AA4C7A */
+  --afrat-surface-border: 243 232 238; /* #F3E8EE */
 
   --afrat-ink: 45 43 63; /* #2D2B3F */
   --afrat-ink-muted: 107 104 126; /* #6B687E */
@@ -52,12 +111,23 @@
     @apply bg-surface text-ink font-sans antialiased;
     /* Prevent rubber-band scroll revealing the page behind the TWA shell. */
     overscroll-behavior-y: none;
+
+    /* Persian needs more leading than Latin: the script sits on a lower
+       baseline, stacks diacritics above and descenders below, and dense
+       paragraphs become hard to track at the 1.5 that suits Latin body copy.
+       1.8 is the comfortable floor on a phone; individual components raise it
+       to `leading-7` where a block is long. */
+    line-height: 1.8;
   }
 
   /* Headings carry the darker contrast token, body text the muted one. */
   h1, h2, h3, h4 {
     @apply text-ink font-bold;
+    /* Persian letterforms already carry their own rhythm; tracking applied
+       on top of them detaches the joined glyphs. Never letter-space Persian. */
     letter-spacing: 0;
+    /* Tighter than body — a two-line heading at 1.8 looks unmoored. */
+    line-height: 1.5;
   }
 
   /* RTL: never let long Latin tokens (URLs, IDs) break the layout. */
