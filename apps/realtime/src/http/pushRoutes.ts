@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { resolveUser } from '../auth.js';
+import { requireAuth } from '../auth/middleware.js';
 import { removeSubscription, saveSubscription } from '../push/webPush.js';
 
 const subscriptionSchema = z.object({
@@ -11,11 +11,10 @@ const subscriptionSchema = z.object({
 });
 
 export async function pushRoutes(app: FastifyInstance) {
+  app.addHook('preHandler', requireAuth);
+
   app.post('/api/push/subscribe', async (request, reply) => {
-    const user = await resolveUser(
-      request.headers.authorization?.replace(/^Bearer\s+/i, ''),
-    );
-    if (!user) return reply.code(401).send({ message: 'احراز هویت لازم است.' });
+    const user = request.authUser!;
 
     const parsed = subscriptionSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -32,10 +31,7 @@ export async function pushRoutes(app: FastifyInstance) {
   app.post<{ Body: { endpoint?: string } }>(
     '/api/push/unsubscribe',
     async (request, reply) => {
-      const user = await resolveUser(
-        request.headers.authorization?.replace(/^Bearer\s+/i, ''),
-      );
-      if (!user) return reply.code(401).send({ message: 'احراز هویت لازم است.' });
+      const user = request.authUser!;
 
       const endpoint = request.body?.endpoint;
       if (endpoint) removeSubscription(user.id, endpoint);

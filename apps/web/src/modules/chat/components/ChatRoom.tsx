@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { jalaliDayKey } from '@/lib/jalali';
 import { formatFaRelative, toFaDigits } from '@/lib/persian';
 import { cn } from '@/lib/utils';
-import { useUserStore } from '@/stores/userStore';
+import { useAuthStore } from '@/modules/auth/store/authStore';
 
 import { useChatSocket } from '../hooks/useChatSocket';
 import type { ChatMessage, ChatRoom as ChatRoomModel } from '../types';
@@ -26,7 +26,7 @@ interface ChatRoomProps {
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
 export function ChatRoom({ room, backHref = '/chat' }: ChatRoomProps) {
-  const meId = useUserStore((s) => s.profile?.id ?? 'anonymous');
+  const meId = useAuthStore((s) => s.user?.id ?? 'anonymous');
 
   const {
     status,

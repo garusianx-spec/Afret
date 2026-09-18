@@ -32,7 +32,14 @@ android/local.properties
 android/*.apk
 android/*.aab
 
-# Licensed fonts are not redistributable — see apps/web/public/fonts/README.md
+# Brand fonts live in apps/web/src/fonts and ARE committed — the project
+# holds the IranYekan Web licence. This guards the old public path so a
+# duplicate copy cannot sneak back in.
 apps/web/public/fonts/*.woff2
 apps/web/public/fonts/*.woff
 apps/web/public/fonts/*.ttf
+
+# Audio assets are large and separately licensed — see public/audio/README.md
+apps/web/public/audio/*.mp3
+apps/web/public/audio/*.aac
+apps/web/public/audio/*.m4a

@@ -1,10 +1,14 @@
+import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import type { Server as SocketServer } from 'socket.io';
 
 import { env } from './env.js';
+import { authRoutes } from './http/authRoutes.js';
 import { chatRoutes } from './http/chatRoutes.js';
 import { pushRoutes } from './http/pushRoutes.js';
+import { userStore } from './auth/userStore.js';
 import { configurePush } from './push/webPush.js';
 import { createGateway } from './realtime/gateway.js';
 import type { ClientToServerEvents, ServerToClientEvents, SocketData } from './types.js';
@@ -31,9 +35,53 @@ const app = Fastify({
 
 await app.register(cors, {
   origin: env.corsOrigins,
+  // Required for the refresh cookie to travel cross-origin between the web
+  // app and this service.
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+});
+
+/**
+ * Treat an empty body on a JSON request as `{}`.
+ *
+ * Bodyless POSTs are legitimate here — `/auth/refresh` and `/auth/logout`
+ * carry their state in a cookie — and a client that still sends
+ * `Content-Type: application/json` should not get a 400 for it.
+ */
+app.addContentTypeParser(
+  'application/json',
+  { parseAs: 'string' },
+  (_request, body, done) => {
+    const raw = typeof body === 'string' ? body.trim() : '';
+    if (raw.length === 0) return done(null, {});
+    try {
+      done(null, JSON.parse(raw));
+    } catch {
+      const error = new Error('بدنهٔ درخواست معتبر نیست.') as Error & {
+        statusCode?: number;
+      };
+      error.statusCode = 400;
+      done(error, undefined);
+    }
+  },
+);
+
+await app.register(cookie, {
+  // Refresh tokens are already opaque 256-bit randoms stored hashed, so the
+  // cookie itself needs no additional signing.
+  parseOptions: { path: '/' },
+});
+
+/**
+ * Global ceiling. Individual credential routes tighten this considerably —
+ * see `credentialRateLimit` in authRoutes.
+ */
+await app.register(rateLimit, {
+  global: false,
+  max: 300,
+  timeWindow: '1 minute',
+  keyGenerator: (request) => request.ip,
 });
 
 app.get('/health', async () => ({
@@ -41,8 +89,10 @@ app.get('/health', async () => ({
   uptime: process.uptime(),
   redis: Boolean(env.REDIS_URL),
   push: Boolean(env.VAPID_PUBLIC_KEY),
+  auth: true,
 }));
 
+await app.register(authRoutes);
 await app.register(chatRoutes);
 await app.register(pushRoutes);
 
@@ -67,9 +117,28 @@ app.log.info(
  * Graceful shutdown — drain sockets before the process exits so clients
  * reconnect to a healthy instance instead of hanging on a half-closed one.
  * ------------------------------------------------------------------ */
+/**
+ * Expired refresh sessions are dead rows: they can never authenticate, but
+ * they grow without bound. Hourly is frequent enough to keep the table small
+ * and rare enough to be invisible.
+ */
+const sessionSweeper = setInterval(
+  () => {
+    void userStore
+      .purgeExpiredSessions()
+      .then((count) => {
+        if (count > 0) app.log.info({ count }, 'purged expired refresh sessions');
+      })
+      .catch((error) => app.log.error({ err: error }, 'session purge failed'));
+  },
+  60 * 60 * 1000,
+);
+sessionSweeper.unref();
+
 const shutdown = async (signal: string) => {
   app.log.info(`${signal} received, shutting down…`);
   try {
+    clearInterval(sessionSweeper);
     await io.close();
     await app.close();
     process.exit(0);

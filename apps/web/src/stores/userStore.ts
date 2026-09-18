@@ -5,18 +5,26 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 import type { GestationalOverride, LifecycleMode, UserProfile } from '@/types';
 
+/**
+ * Health profile — cycle mode, dates, baby.
+ *
+ * Deliberately separate from `authStore`: identity is issued by the server
+ * and lives in memory, while this is the user's own clinical data, cached
+ * locally so the tracker works offline. Authentication state does not belong
+ * here and tokens are never persisted.
+ */
 interface UserState {
   profile: UserProfile | null;
-  /** Session token forwarded in the socket handshake and REST calls. */
-  token: string | null;
   hydrated: boolean;
 
   setProfile: (profile: UserProfile) => void;
   patchProfile: (patch: Partial<UserProfile>) => void;
   setMode: (mode: LifecycleMode) => void;
   setGestationalOverride: (override: GestationalOverride | undefined) => void;
-  setToken: (token: string | null) => void;
-  signOut: () => void;
+  /** Adopt the signed-in account's display name and id. */
+  adoptIdentity: (identity: { id: string; displayName?: string }) => void;
+  /** Clears cached health data on sign-out. */
+  reset: () => void;
 }
 
 /**
@@ -47,7 +55,6 @@ export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
       profile: demoProfile,
-      token: null,
       hydrated: false,
 
       setProfile: (profile) => set({ profile }),
@@ -65,16 +72,27 @@ export const useUserStore = create<UserState>()(
             ? { profile: { ...state.profile, gestationalOverride } }
             : state,
         ),
-      setToken: (token) => set({ token }),
-      signOut: () => set({ profile: null, token: null }),
+      adoptIdentity: ({ id, displayName }) =>
+        set((state) => ({
+          profile: state.profile
+            ? {
+                ...state.profile,
+                id,
+                displayName: displayName?.trim() || state.profile.displayName,
+              }
+            : { ...demoProfile, id, displayName: displayName?.trim() || demoProfile.displayName },
+        })),
+
+      // Health data is per-account, so a sign-out must not leave the next
+      // person on the device looking at someone else's pregnancy.
+      reset: () => set({ profile: demoProfile }),
     }),
     {
       name: 'afrat-user',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ profile: state.profile, token: state.token }),
-      onRehydrateStorage: () => (state) => {
+      partialize: (state) => ({ profile: state.profile }),
+      onRehydrateStorage: () => () => {
         // Components gate on `hydrated` to avoid an SSR/CSR text mismatch.
-        state?.setToken(state.token ?? null);
         useUserStore.setState({ hydrated: true });
       },
     },

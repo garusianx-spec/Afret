@@ -4,12 +4,15 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
 
-import { resolveUser } from '../auth.js';
+import { authenticate, toChatUser } from '../auth/middleware.js';
+import { hasPermission } from '../auth/types.js';
 import { env } from '../env.js';
 import { sendPush } from '../push/webPush.js';
 import { createRedisPair } from '../redis.js';
+import { membershipStore, DEFAULT_ROOMS } from '../store/membershipStore.js';
 import { messageStore } from '../store/messageStore.js';
 import type {
+  ChatMessage,
   ClientToServerEvents,
   ServerToClientEvents,
   SocketData,
@@ -133,15 +136,28 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
 
   const presence = new PresenceTracker(redisPair?.pubClient ?? null);
 
+  /**
+   * Handshake authentication.
+   *
+   * The identity on a socket comes from a verified JWT signature and nothing
+   * else — never from a client-supplied user id. Everything downstream
+   * (authorship, permissions, presence) trusts `socket.data.user`, so this
+   * middleware is the only place that decides who someone is.
+   */
   io.use(async (socket, next) => {
     const token =
       (socket.handshake.auth as { token?: string } | undefined)?.token ??
       socket.handshake.headers.authorization?.replace(/^Bearer\s+/i, '');
 
-    const user = await resolveUser(token);
-    if (!user) return next(new Error('UNAUTHORIZED'));
+    const authUser = await authenticate(token);
+    if (!authUser) {
+      // A distinct code lets the client tell "token expired, refresh and
+      // retry" apart from "server is down, back off and retry".
+      return next(new Error('UNAUTHORIZED'));
+    }
 
-    socket.data.user = user;
+    socket.data.auth = authUser;
+    socket.data.user = toChatUser(authUser);
     next();
   });
 
@@ -149,6 +165,16 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
     const user = socket.data.user;
     const bucket = new TokenBucket();
     const joined = new Set<string>();
+
+    // Membership is what makes offline push possible, so it must exist before
+    // the first message rather than being created lazily on join.
+    void Promise.all(
+      DEFAULT_ROOMS.map((room) =>
+        membershipStore.join({ roomId: room.id, userId: user.id }),
+      ),
+    ).catch((error) => {
+      io.engine?.emit?.('error', error);
+    });
 
     socket.on('room:join', async (payload, ack) => {
       const parsed = joinSchema.safeParse(payload);
@@ -160,6 +186,7 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
 
       await socket.join(roomId);
       joined.add(roomId);
+      await membershipStore.join({ roomId, userId: user.id });
       await presence.join(roomId, user.id);
 
       io.to(roomId).emit('presence:update', {
@@ -192,6 +219,13 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
       if (!joined.has(message.roomId)) {
         return ack({ ok: false, error: 'FORBIDDEN', retryable: false });
       }
+      if (!hasPermission(socket.data.auth.permissions, 'chat:write')) {
+        return ack({
+          ok: false,
+          error: 'اجازهٔ ارسال پیام در این بخش را ندارید.',
+          retryable: false,
+        });
+      }
       if (!bucket.take()) {
         return ack({ ok: false, error: 'کمی آرام‌تر ارسال کنید.', retryable: true });
       }
@@ -207,7 +241,7 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
         ack({ ok: true, id: stored.id, seq: stored.seq, createdAt: stored.createdAt });
         socket.to(message.roomId).emit('message:new', stored);
 
-        await notifyAbsentMembers({ io, presence, roomId: message.roomId, stored });
+        await notifyAbsentMembers({ presence, roomId: message.roomId, stored });
       } catch (error) {
         const code = (error as Error).message;
         ack({
@@ -241,6 +275,11 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
         userId: user.id,
         lastReadSeq: parsed.data.lastReadSeq,
       });
+      await membershipStore.setLastRead(
+        parsed.data.roomId,
+        user.id,
+        parsed.data.lastReadSeq,
+      );
       socket.to(parsed.data.roomId).emit('receipt:update', receipt);
     });
 
@@ -279,33 +318,46 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
 }
 
 /**
- * Push is the fallback for members with no live socket in the room. The check
- * is deliberately per-room: a mother reading the nutrition room should still
- * be notified about her doctor's reply.
+ * Push fan-out for everyone who will not see the message on screen.
+ *
+ * Recipients come from the membership table, minus the author, minus anyone
+ * with a live socket in this room, minus mutes and notify preferences. Group
+ * rooms work the same way as 1:1 consultations — the only difference is how
+ * many rows come back.
  */
 async function notifyAbsentMembers({
-  io,
   presence,
   roomId,
   stored,
 }: {
-  io: AfratServer;
   presence: PresenceTracker;
   roomId: string;
-  stored: { authorId: string; body: string; kind: string; author?: { displayName: string } };
+  stored: ChatMessage;
 }) {
   const room = await messageStore.getRoom(roomId);
   if (!room) return;
 
-  // For 1:1 consultations the recipient is unambiguous. Group rooms need a
-  // real membership table — see the schema note in `messageStore.ts`.
-  const recipientId =
-    room.kind === 'consult' && room.counterpart && room.counterpart.id !== stored.authorId
-      ? room.counterpart.id
-      : null;
-  if (!recipientId) return;
+  const recipients = await membershipStore.pushRecipients({
+    roomId,
+    authorId: stored.authorId,
+    // Mentions are not resolvable yet: accounts have no unique handle, so
+    // `@sara` cannot be mapped to a user id. Passing nothing is the honest
+    // behaviour — members on `notify: 'mentions'` are skipped rather than
+    // notified for everything. Add a `username` column and resolve here.
+    mentionedUserIds: [],
+  });
+  if (recipients.length === 0) return;
 
-  if (await presence.isOnline(roomId, recipientId)) return;
+  // Someone watching this very room does not need a notification for a
+  // message already on their screen.
+  const offline = (
+    await Promise.all(
+      recipients.map(async (userId) =>
+        (await presence.isOnline(roomId, userId)) ? null : userId,
+      ),
+    )
+  ).filter((id): id is string => id !== null);
+  if (offline.length === 0) return;
 
   const preview =
     stored.kind === 'image'
@@ -314,12 +366,23 @@ async function notifyAbsentMembers({
         ? 'پیام صوتی ارسال شد'
         : stored.body.slice(0, 120);
 
-  await sendPush(recipientId, {
-    title: stored.author?.displayName ?? 'آفرت',
-    body: preview,
-    url: `/chat/${roomId}`,
-    tag: `room-${roomId}`,
-  });
+  const author = stored.author?.displayName ?? 'آفرت';
+  // A group room names the room and the speaker; a private consultation names
+  // only the person, because the room title says nothing useful there.
+  const title = room.kind === 'consult' ? author : room.title;
+  const body = room.kind === 'consult' ? preview : `${author}: ${preview}`;
 
-  void io; // reserved for future in-app fan-out
+  await Promise.all(
+    offline.map((userId) =>
+      sendPush(userId, {
+        title,
+        body,
+        url: `/chat/${roomId}`,
+        // One notification per room, replaced as new messages arrive, rather
+        // than a stack of twelve from one busy cohort room.
+        tag: `room-${roomId}`,
+      }),
+    ),
+  );
 }
+

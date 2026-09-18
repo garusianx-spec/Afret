@@ -3,27 +3,16 @@
 @tailwind utilities;
 
 /* ------------------------------------------------------------------ *
- * Typography — IranYekan X Variable
+ * Typography
  *
- * The font is commercially licensed and therefore NOT committed to this
- * repository. Drop `IRANYekanX-VF.woff2` into `public/fonts/` (see the
- * README there) and this face activates automatically. Until then the
- * stack falls back to Vazirmatn / system Persian faces so the RTL metrics
- * stay close and nothing renders in Latin-first Helvetica.
+ * The IranYekan Web faces are loaded by `next/font/local` in
+ * `src/fonts/index.ts`, which sets `--afrat-font-sans` on <html>. The value
+ * below is only a safety net for contexts that render before (or without)
+ * that class — e.g. a static error page.
  * ------------------------------------------------------------------ */
-@font-face {
-  font-family: 'IRANYekanX';
-  src: url('/fonts/IRANYekanX-VF.woff2') format('woff2-variations');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  /* Persian + Arabic-Indic digits + Latin basics. */
-  unicode-range: U+0600-06FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF, U+0020-007F;
-}
 
 :root {
-  --afrat-font-sans: 'IRANYekanX', 'Vazirmatn', 'IRANSans', 'Segoe UI', Tahoma,
-    system-ui, sans-serif;
+  --afrat-font-sans: 'Vazirmatn', 'IRANSans', Tahoma, system-ui, sans-serif;
 
   /* Channel triplets so Tailwind can apply <alpha-value>. */
   --afrat-primary: 156 136 255; /* #9C88FF */
@@ -41,6 +30,10 @@
   --afrat-surface: 248 247 252; /* #F8F7FC */
   --afrat-surface-card: 255 255 255; /* #FFFFFF */
   --afrat-surface-border: 241 235 250; /* #F1EBFA */
+
+  /* Logo plum. Not a UI accent — it exists so the brand mark renders in its
+     own colour without anyone reaching for the lavender primary. */
+  --afrat-brand: 170 76 122; /* #AA4C7A */
 
   --afrat-ink: 45 43 63; /* #2D2B3F */
   --afrat-ink-muted: 107 104 126; /* #6B687E */

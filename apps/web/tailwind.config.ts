@@ -30,6 +30,8 @@ const config: Config = {
           DEFAULT: 'rgb(var(--afrat-mint) / <alpha-value>)',
           soft: 'rgb(var(--afrat-mint-soft) / <alpha-value>)',
         },
+        // The logo's plum. Used by the brand mark only.
+        brand: 'rgb(var(--afrat-brand) / <alpha-value>)',
         surface: {
           DEFAULT: 'rgb(var(--afrat-surface) / <alpha-value>)',
           card: 'rgb(var(--afrat-surface-card) / <alpha-value>)',

@@ -141,7 +141,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (sameOrigin && url.pathname.startsWith('/audio/')) {
+    // Lullabies have to work on a plane and in a basement, so they are
+    // cache-first and survive offline once played.
     event.respondWith(cacheFirst(request, CACHE.audio, LIMITS.audio));
+    return;
+  }
+
+  // `next/font` emits the woff2 files under /_next/static/media/, which the
+  // rule above already covers. This one remains for anything served straight
+  // from /fonts (the offline shell, or a font added without next/font).
+  if (sameOrigin && url.pathname.startsWith('/brand/')) {
+    event.respondWith(cacheFirst(request, CACHE.static));
     return;
   }
 

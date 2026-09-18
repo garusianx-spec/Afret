@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { resolveUser } from '../auth.js';
+import { requireAuth, toChatUser } from '../auth/middleware.js';
+import { membershipStore } from '../store/membershipStore.js';
 import { messageStore } from '../store/messageStore.js';
 
 const listQuery = z.object({
@@ -24,19 +25,18 @@ const sendBody = z.object({
   replyToId: z.string().optional(),
 });
 
-async function currentUser(authorization?: string) {
-  return resolveUser(authorization?.replace(/^Bearer\s+/i, ''));
-}
-
 /**
  * REST surface for everything that is not a live event: history, search and
  * the HTTP send fallback used when the WebSocket handshake is blocked.
  */
 export async function chatRoutes(app: FastifyInstance) {
-  app.get('/api/chat/rooms', async (request, reply) => {
-    const user = await currentUser(request.headers.authorization);
-    if (!user) return reply.code(401).send({ message: 'احراز هویت لازم است.' });
+  // Every chat route needs a verified identity; `requireAuth` is applied once
+  // here rather than repeated on each handler, so a new route cannot
+  // accidentally ship unauthenticated.
+  app.addHook('preHandler', requireAuth);
 
+  app.get('/api/chat/rooms', async (request) => {
+    const user = request.authUser!;
     return { rooms: await messageStore.listRooms(user.id) };
   });
 
@@ -48,6 +48,59 @@ export async function chatRoutes(app: FastifyInstance) {
       return room;
     },
   );
+
+  /** Join a room — creates the membership row that offline push reads. */
+  app.post<{ Params: { roomId: string } }>(
+    '/api/chat/rooms/:roomId/join',
+    async (request, reply) => {
+      const room = await messageStore.getRoom(request.params.roomId);
+      if (!room) return reply.code(404).send({ message: 'اتاق یافت نشد.' });
+
+      const member = await membershipStore.join({
+        roomId: request.params.roomId,
+        userId: request.authUser!.id,
+      });
+      return reply.code(201).send({ member });
+    },
+  );
+
+  app.delete<{ Params: { roomId: string } }>(
+    '/api/chat/rooms/:roomId/membership',
+    async (request, reply) => {
+      await membershipStore.leave(request.params.roomId, request.authUser!.id);
+      return reply.code(204).send();
+    },
+  );
+
+  /** Per-room notification preference: all | mentions | none, plus mute. */
+  app.patch<{
+    Params: { roomId: string };
+    Body: { notify?: 'all' | 'mentions' | 'none'; mutedUntil?: string | null };
+  }>('/api/chat/rooms/:roomId/notifications', async (request, reply) => {
+    const schema = z.object({
+      notify: z.enum(['all', 'mentions', 'none']).optional(),
+      mutedUntil: z.string().datetime().nullable().optional(),
+    });
+    const parsed = schema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ message: 'تنظیمات اعلان معتبر نیست.' });
+    }
+
+    const { roomId } = request.params;
+    const userId = request.authUser!.id;
+
+    if (!(await membershipStore.get(roomId, userId))) {
+      return reply.code(404).send({ message: 'شما عضو این اتاق نیستید.' });
+    }
+    if (parsed.data.notify) {
+      await membershipStore.setNotify(roomId, userId, parsed.data.notify);
+    }
+    if (parsed.data.mutedUntil !== undefined) {
+      await membershipStore.mute(roomId, userId, parsed.data.mutedUntil ?? undefined);
+    }
+
+    return reply.send({ member: await membershipStore.get(roomId, userId) });
+  });
 
   // Cursor pagination. Offsets are unusable here: a new message arriving
   // mid-scroll would shift every subsequent page by one.
@@ -94,8 +147,7 @@ export async function chatRoutes(app: FastifyInstance) {
   app.post<{ Params: { roomId: string } }>(
     '/api/chat/rooms/:roomId/messages',
     async (request, reply) => {
-      const user = await currentUser(request.headers.authorization);
-      if (!user) return reply.code(401).send({ message: 'احراز هویت لازم است.' });
+      const user = request.authUser!;
 
       const parsed = sendBody.safeParse(request.body);
       if (!parsed.success) {
@@ -112,7 +164,7 @@ export async function chatRoutes(app: FastifyInstance) {
       try {
         const stored = await messageStore.append(
           { ...parsed.data, clientId: idempotencyKey, attachments: undefined },
-          user,
+          toChatUser(user),
         );
 
         // Fan out to live sockets so WebSocket clients see it immediately.
@@ -132,8 +184,7 @@ export async function chatRoutes(app: FastifyInstance) {
   app.post<{ Params: { roomId: string }; Body: { lastReadSeq?: number } }>(
     '/api/chat/rooms/:roomId/read',
     async (request, reply) => {
-      const user = await currentUser(request.headers.authorization);
-      if (!user) return reply.code(401).send({ message: 'احراز هویت لازم است.' });
+      const user = request.authUser!;
 
       const lastReadSeq = Number(request.body?.lastReadSeq ?? 0);
       if (!Number.isInteger(lastReadSeq) || lastReadSeq < 0) {
@@ -145,6 +196,7 @@ export async function chatRoutes(app: FastifyInstance) {
         userId: user.id,
         lastReadSeq,
       });
+      await membershipStore.setLastRead(request.params.roomId, user.id, lastReadSeq);
       request.server.io?.to(request.params.roomId).emit('receipt:update', receipt);
 
       return reply.code(204).send();

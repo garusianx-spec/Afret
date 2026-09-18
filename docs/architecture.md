@@ -19,8 +19,8 @@ apps/web/
 │   ├── manifest.webmanifest        نصب PWA، شورتکات‌ها، آیکون‌ها
 │   ├── sw.js                       سرویس‌ورکر دست‌نویس (کش + push + sync)
 │   ├── offline.html                پوستهٔ آفلاین، مستقل از باندل
-│   ├── icons/                      SVG منبع + PNGهای تولیدشده
-│   ├── fonts/                      IranYekan X (تجاری، commit نمی‌شود)
+│   ├── brand/                      نماد و لوگوتایپ (منبع تولید آیکون)
+│   ├── icons/                      PNGهای تولیدشده از brand/mark.svg
 │   ├── audio/                      نویز سفید و لالایی (commit نمی‌شود)
 │   └── .well-known/assetlinks.json اعتبارسنجی TWA
 │
@@ -28,6 +28,8 @@ apps/web/
 │   └── generate-icons.mjs          رستر کردن SVG برند به کل مجموعهٔ PNG
 │
 └── src/
+    ├── fonts/                      IranYekan Web + پیکربندی next/font
+    │
     ├── app/                        مسیریابی — فقط ترکیب، نه منطق
     │   ├── layout.tsx              html[lang=fa-IR][dir=rtl]، متادیتا، viewport
     │   ├── globals.css             توکن‌ها، @font-face، ابزارهای پایه
@@ -41,6 +43,14 @@ apps/web/
     │   └── chat/[roomId]/page.tsx  اتاق گفتگو (بیرون از تب‌ها، تمام‌صفحه)
     │
     ├── modules/                    ← قلب اپ؛ هر ماژول خودکفاست
+    │   ├── auth/
+    │   │   ├── AuthProvider.tsx        نشست، تازه‌سازی بی‌صدا، تمدید پیش‌دستانه
+    │   │   ├── api/authApi.ts          register / login / refresh / me
+    │   │   ├── store/authStore.ts      توکن فقط در حافظه، کاربر در sessionStorage
+    │   │   ├── lib/tokenBridge.ts      پل به ماژول‌های خارج از React
+    │   │   ├── lib/mobile.ts           نرمال‌سازی موبایل + سنجش قدرت رمز
+    │   │   └── components/             AuthScreen, AuthGate, AccountCard, BrandMark
+    │   │
     │   ├── chat/
     │   │   ├── api/chatApi.ts          REST: تاریخچه، جستجو، آپلود presigned
     │   │   ├── hooks/useChatSocket.ts  چرخهٔ عمر سوکت + ارسال + صفحه‌بندی
@@ -67,7 +77,9 @@ apps/web/
     │   │   └── components/
     │   │
     │   ├── home/                       هیروی پویا، پیام روز، چک‌لیست
-    │   └── profile/                    آلبوم خاطرات، پخش صدا، چک‌لیست‌ها
+    │   └── profile/
+    │       ├── hooks/useBackgroundAudio.ts  پخش مقاوم روی مرورگر موبایل
+    │       └── components/             آلبوم خاطرات، پخش صدا، چک‌لیست‌ها
     │
     ├── components/
     │   ├── ui/                     Card, Chip, ProgressRing, SectionTitle
@@ -97,16 +109,26 @@ apps/web/
 apps/realtime/src/
 ├── index.ts                    راه‌اندازی Fastify، اتصال Socket.io، خاموشی نرم
 ├── env.ts                      اعتبارسنجی محیط با zod (fail-fast)
-├── auth.ts                     resolveUser() — جای تأیید JWT واقعی
 ├── redis.ts                    جفت اتصال pub/sub برای adapter
 ├── types.ts                    آینهٔ قرارداد wire
+├── auth/
+│   ├── mobile.ts               نرمال‌سازی شمارهٔ موبایل ایران
+│   ├── password.ts             هش Argon2id + سیاست رمز
+│   ├── tokens.ts               امضا/تأیید JWT، توکن تازه‌سازی، کوکی
+│   ├── userStore.ts            حساب‌ها و نشست‌ها (اینترفیس + in-memory)
+│   ├── otp.ts                  OTP پیامکی — معماری آماده، ارائه‌دهنده وصل نیست
+│   ├── middleware.ts           requireAuth / requirePermission / toChatUser
+│   └── types.ts                نقش‌ها، دسترسی‌ها، شکل عمومی کاربر
 ├── http/
-│   ├── chatRoutes.ts           تاریخچه، since، جستجو، ارسال پشتیبان، presign
+│   ├── authRoutes.ts           register / login / refresh / logout / me
+│   ├── chatRoutes.ts           تاریخچه، since، جستجو، عضویت، اعلان اتاق
 │   └── pushRoutes.ts           اشتراک/لغو اشتراک Web Push
 ├── realtime/
-│   ├── gateway.ts              رویدادهای سوکت، اعتبارسنجی، محدودسازی نرخ
+│   ├── gateway.ts              احراز هویت handshake، رویدادها، محدودسازی نرخ
 │   └── presence.ts             حضور با شمارندهٔ مرجع (Redis یا محلی)
-├── store/messageStore.ts       اینترفیس + پیاده‌سازی in-memory
+├── store/
+│   ├── messageStore.ts         اینترفیس + پیاده‌سازی in-memory
+│   └── membershipStore.ts      عضویت اتاق — پایهٔ push گروهی
 └── push/webPush.ts             ارسال VAPID + هرس endpointهای مرده
 ```
 
@@ -116,7 +138,12 @@ apps/realtime/src/
 ## جریان داده
 
 ```
-   صفحه (Server Component)
+   AuthProvider ──▶ authStore (توکن در حافظه) ──▶ tokenBridge
+        │                                              │
+        │                                              ├─▶ chatApi (هدر Bearer)
+        │                                              └─▶ socketClient (handshake)
+        ▼
+   AuthGate ──▶ صفحه (Server Component)
         │
         ▼
    کامپوننت کلاینت ──▶ useChatSocket ──┬─▶ chatStore (Zustand)   ← رندر

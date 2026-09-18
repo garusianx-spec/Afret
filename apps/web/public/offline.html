@@ -23,7 +23,9 @@
         padding: 24px;
         background: var(--surface);
         color: var(--ink);
-        font-family: 'IRANYekanX', 'Vazirmatn', Tahoma, system-ui, sans-serif;
+        /* No next/font here — this page must render with zero JS and zero
+           network, so it uses whatever Persian face the device already has. */
+        font-family: 'Vazirmatn', 'IRANSans', Tahoma, system-ui, sans-serif;
       }
       .card {
         max-width: 24rem;

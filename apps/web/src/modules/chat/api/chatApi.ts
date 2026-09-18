@@ -1,4 +1,5 @@
 import { config } from '@/lib/config';
+import { authHeader } from '@/modules/auth/lib/tokenBridge';
 
 import type {
   Attachment,
@@ -20,16 +21,24 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Resolved per call rather than captured once: a long-lived tab refreshes
+  // its access token in the background, and a stale closure would keep
+  // sending the expired one.
+  const auth = await authHeader();
+
   const res = await fetch(`${config.apiUrl}${path}`, {
     credentials: 'include',
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...auth,
       ...(init.headers ?? {}),
     },
   });
 
   if (!res.ok) {
+    // 401 is not retryable here: the token bridge already refreshed before
+    // this call, so a 401 means the session is genuinely gone.
     const retryable = res.status >= 500 || res.status === 429 || res.status === 408;
     let message = `درخواست ناموفق بود (${res.status})`;
     try {

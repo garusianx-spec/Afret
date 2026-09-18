@@ -1,132 +1,62 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Moon, Pause, Play, Timer } from 'lucide-react';
+import { AlertCircle, Loader2, Moon, Pause, Play, Timer } from 'lucide-react';
 
 import { Card, CardTitle } from '@/components/ui';
 import { toFaDigits } from '@/lib/persian';
 import { cn } from '@/lib/utils';
 
-import { SOUND_LIBRARY, type SoundTrack } from '../data/checklists';
+import { SOUND_LIBRARY } from '../data/checklists';
+import { useBackgroundAudio } from '../hooks/useBackgroundAudio';
 
 const SLEEP_TIMERS = [0, 15, 30, 60] as const;
 
-/**
- * Looping white-noise / lullaby player.
- *
- * Uses the Media Session API so playback keeps going with the screen off and
- * shows proper controls on the Android lock screen — the whole point of this
- * feature is that the phone is face-down next to a sleeping baby.
- */
+/** `۰۹:۳۴` — remaining time on the sleep timer. */
+function formatRemaining(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return toFaDigits(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+}
+
 export function SoundPlayer() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [current, setCurrent] = useState<SoundTrack | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [timerMinutes, setTimerMinutes] = useState<number>(0);
-  const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    // `audio` is created lazily so SSR never touches the DOM API.
-    const audio = new Audio();
-    audio.loop = true;
-    audio.preload = 'none';
-    audioRef.current = audio;
-
-    return () => {
-      audio.pause();
-      audio.src = '';
-      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!('mediaSession' in navigator) || !current) return;
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: current.title,
-      artist: 'آفرت',
-      album: current.category,
-      artwork: [{ src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }],
-    });
-    navigator.mediaSession.setActionHandler('play', () => void toggle(current));
-    navigator.mediaSession.setActionHandler('pause', () => stop());
-
-    return () => {
-      navigator.mediaSession.setActionHandler('play', null);
-      navigator.mediaSession.setActionHandler('pause', null);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current]);
-
-  const stop = () => {
-    audioRef.current?.pause();
-    setPlaying(false);
-    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
-  };
-
-  const armSleepTimer = (minutes: number) => {
-    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
-    setTimerMinutes(minutes);
-    if (minutes === 0) return;
-    sleepTimerRef.current = setTimeout(() => {
-      stop();
-      setTimerMinutes(0);
-    }, minutes * 60_000);
-  };
-
-  const toggle = async (track: SoundTrack) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (current?.id === track.id && playing) {
-      stop();
-      return;
-    }
-
-    if (current?.id !== track.id) {
-      audio.src = track.src;
-      setCurrent(track);
-    }
-
-    try {
-      await audio.play();
-      setPlaying(true);
-      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-      if (timerMinutes > 0) armSleepTimer(timerMinutes);
-    } catch {
-      // Autoplay policy or a missing audio file — leave the UI in a paused
-      // state rather than throwing an unhandled rejection.
-      setPlaying(false);
-    }
-  };
+  const {
+    current,
+    playing,
+    loading,
+    error,
+    sleepMinutes,
+    sleepRemaining,
+    toggle,
+    setSleepTimer,
+  } = useBackgroundAudio();
 
   return (
     <Card>
       <CardTitle
         action={
-          <span className="flex items-center gap-1 text-xs text-ink-muted">
+          <span className="flex items-center gap-1 text-xs text-ink-muted tabular-nums">
             <Timer className="size-3.5" aria-hidden="true" />
-            {timerMinutes > 0 ? `${toFaDigits(timerMinutes)} دقیقه` : 'بدون تایمر'}
+            {sleepRemaining > 0
+              ? formatRemaining(sleepRemaining)
+              : sleepMinutes > 0
+                ? `${toFaDigits(sleepMinutes)} دقیقه`
+                : 'بدون تایمر'}
           </span>
         }
       >
         صداهای آرام‌بخش
       </CardTitle>
 
-      <div
-        role="group"
-        aria-label="تایمر خواب"
-        className="mb-3 flex gap-1.5"
-      >
+      <div role="group" aria-label="تایمر خواب" className="mb-3 flex gap-1.5">
         {SLEEP_TIMERS.map((minutes) => (
           <button
             key={minutes}
             type="button"
-            aria-pressed={timerMinutes === minutes}
-            onClick={() => armSleepTimer(minutes)}
+            aria-pressed={sleepMinutes === minutes}
+            onClick={() => setSleepTimer(minutes)}
             className={cn(
               'afrat-tap flex-1 rounded-pill px-2 py-1.5 text-[11px] font-medium transition',
-              timerMinutes === minutes
+              sleepMinutes === minutes
                 ? 'bg-primary-deep text-white'
                 : 'bg-surface text-ink-muted',
             )}
@@ -136,45 +66,73 @@ export function SoundPlayer() {
         ))}
       </div>
 
+      {error ? (
+        <p
+          role="alert"
+          className="mb-3 flex items-start gap-1.5 rounded-xl bg-coral-soft p-2.5 text-[11px] leading-5 text-ink"
+        >
+          <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {error}
+        </p>
+      ) : null}
+
       <ul className="flex flex-col gap-1.5">
         {SOUND_LIBRARY.map((track) => {
-          const active = current?.id === track.id && playing;
+          const isCurrent = current?.id === track.id;
+          const isPlaying = isCurrent && playing;
+          const isLoading = isCurrent && loading && !playing;
+
           return (
             <li key={track.id}>
               <button
                 type="button"
-                onClick={() => void toggle(track)}
+                onClick={() => toggle(track)}
+                aria-pressed={isPlaying}
                 className={cn(
                   'afrat-tap flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-start transition',
-                  active ? 'bg-primary/12' : 'hover:bg-surface',
+                  isCurrent ? 'bg-primary/12' : 'hover:bg-surface',
                 )}
               >
                 <span
                   className={cn(
                     'flex size-9 shrink-0 items-center justify-center rounded-full',
-                    active ? 'bg-primary-deep text-white' : 'bg-surface text-primary-deep',
+                    isPlaying
+                      ? 'bg-primary-deep text-white'
+                      : 'bg-surface text-primary-deep',
                   )}
                 >
-                  {active ? (
+                  {isLoading ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  ) : isPlaying ? (
                     <Pause className="size-4" aria-hidden="true" />
                   ) : (
                     <Play className="size-4" aria-hidden="true" />
                   )}
                 </span>
+
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm text-ink">{track.title}</span>
                   <span className="block text-[11px] text-ink-faint">
                     {track.category}
                   </span>
                 </span>
-                {active ? (
-                  <Moon className="size-4 shrink-0 text-primary-deep" aria-hidden="true" />
+
+                {isPlaying ? (
+                  <Moon
+                    className="size-4 shrink-0 text-primary-deep"
+                    aria-hidden="true"
+                  />
                 ) : null}
               </button>
             </li>
           );
         })}
       </ul>
+
+      <p className="mt-3 text-[11px] leading-5 text-ink-faint">
+        پخش با قفل بودن صفحه ادامه پیدا می‌کند و از کنترل‌های صفحهٔ قفل گوشی
+        قابل مدیریت است.
+      </p>
     </Card>
   );
 }

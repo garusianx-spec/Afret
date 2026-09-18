@@ -129,5 +129,8 @@ export interface ClientToServerEvents {
 }
 
 export interface SocketData {
+  /** Chat-facing identity (what other members see). */
   user: ChatUser;
+  /** Verified claims from the handshake JWT — roles and permissions. */
+  auth: import('./auth/middleware.js').AuthUser;
 }

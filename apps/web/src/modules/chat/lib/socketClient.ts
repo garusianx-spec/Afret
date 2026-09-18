@@ -3,6 +3,7 @@
 import { io, type Socket } from 'socket.io-client';
 
 import { config } from '@/lib/config';
+import { getValidAccessToken } from '@/modules/auth/lib/tokenBridge';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types';
 
 export type AfratSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -17,12 +18,7 @@ export type AfratSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 let socket: AfratSocket | null = null;
 let refCount = 0;
 
-interface AcquireOptions {
-  /** Bearer token / session JWT forwarded in the handshake. */
-  token?: string;
-}
-
-export function acquireSocket({ token }: AcquireOptions = {}): AfratSocket {
+export function acquireSocket(): AfratSocket {
   if (!socket) {
     socket = io(config.socketUrl, {
       path: config.socketPath,
@@ -50,12 +46,15 @@ export function acquireSocket({ token }: AcquireOptions = {}): AfratSocket {
 
       autoConnect: false,
       withCredentials: true,
-      auth: token ? { token } : undefined,
+
+      // A callback, not a static value: Socket.io calls this on every
+      // connection *and every reconnection*, so an access token that expired
+      // while the phone was in a tunnel is refreshed before the retry rather
+      // than replayed dead.
+      auth: (cb: (data: { token?: string }) => void) => {
+        void getValidAccessToken().then((fresh) => cb({ token: fresh ?? undefined }));
+      },
     });
-  } else if (token) {
-    // Refresh the handshake payload so a token rotation is picked up on the
-    // next reconnect without tearing the socket down.
-    socket.auth = { token };
   }
 
   refCount += 1;

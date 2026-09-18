@@ -20,8 +20,11 @@
 | رژیم و تغذیه — نیاز مغذی هفتگی، برنامهٔ تجویزی با ردیابی درشت‌مغذی، جستجوی ایمنی خوراکی | ✅ |
 | گفتگو — اتاق‌های عمومی، مشاورهٔ خصوصی، تایپینگ، حضور، تیک دیده‌شده، صف آفلاین | ✅ |
 | حساب و ابزارها — آلبوم خاطرات، پخش نویز سفید و لالایی، ساک زایمان، سیسمونی | ✅ |
+| احراز هویت — موبایل + رمز، Argon2id، JWT + refresh چرخشی، نقش و دسترسی | ✅ |
+| عضویت اتاق و اعلان push گروهی | ✅ |
 | PWA — سرویس‌ورکر، آفلاین، Web Push، Background Sync | ✅ |
 | TWA — پیکربندی Bubblewrap و Digital Asset Links | ✅ |
+| تأیید شماره با پیامک (OTP) | 🔌 معماری آماده، ارائه‌دهنده وصل نیست |
 | انجمن و اسامی نوزاد | ⏳ برنامه‌ریزی‌شده |
 
 ## شروع سریع
@@ -55,9 +58,16 @@ cp apps/realtime/.env.example apps/realtime/.env
 | `NEXT_PUBLIC_API_URL` | web | ریشهٔ REST سرویس بلادرنگ |
 | `NEXT_PUBLIC_SOCKET_URL` | web | ریشهٔ WebSocket (معمولاً همان بالا) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | web | کلید عمومی Web Push |
-| `CORS_ORIGINS` | realtime | مبدأهای مجاز مرورگر، با کاما |
+| `CORS_ORIGINS` | realtime | مبدأهای مجاز مرورگر، با کاما — برای کوکی refresh لازم است |
+| `JWT_SECRET` | realtime | **در تولید اجباری**؛ حداقل ۳۲ نویسه |
 | `REDIS_URL` | realtime | لازم برای بیش از یک نمونه |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | realtime | `npx web-push generate-vapid-keys` |
+
+ساخت `JWT_SECRET`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
 
 ## ساختار
 
@@ -79,6 +89,7 @@ docs/            مستندات معماری
 | [`docs/realtime-chat.md`](docs/realtime-chat.md) | پروتکل گفتگو، چرخهٔ عمر پیام، مقیاس‌پذیری |
 | [`docs/pwa-strategy.md`](docs/pwa-strategy.md) | نقشهٔ کش، صف آفلاین، Web Push |
 | [`docs/twa-android.md`](docs/twa-android.md) | بسته‌بندی اندروید گام‌به‌گام |
+| [`docs/authentication.md`](docs/authentication.md) | جریان ورود، چرخش توکن، نقش‌ها، OTP |
 | [`docs/design-system.md`](docs/design-system.md) | توکن‌ها، ارقام فارسی، RTL، دسترس‌پذیری |
 
 ## دستورها
@@ -93,14 +104,40 @@ npm run lint           # ESLint
 node apps/web/scripts/generate-icons.mjs   # بازسازی PNGها از SVG برند
 ```
 
-## دو چیزی که در مخزن نیستند
+## دارایی‌های برند
 
-هر دو عمدی‌اند و هر کدام README خودشان را دارند:
+| دارایی | کجاست | راهنما |
+| --- | --- | --- |
+| فونت IranYekan Web (۳ وزن) | `apps/web/src/fonts/` | [README](apps/web/src/fonts/README.md) |
+| نماد و لوگوتایپ | `apps/web/public/brand/` | [README](apps/web/public/brand/README.md) |
+| آیکون‌های PWA/TWA | `apps/web/public/icons/` | تولیدشده — دست نزنید |
+| فایل‌های صوتی | `apps/web/public/audio/` | [README](apps/web/public/audio/README.md) — در مخزن نیستند |
 
-- **فونت IranYekan X** — تجاری است. `apps/web/public/fonts/README.md`
-  می‌گوید کجا بگذاریدش. تا آن زمان پشته به Vazirmatn برمی‌گردد.
-- **فایل‌های صوتی** — نویز سفید و لالایی. `apps/web/public/audio/README.md`
-  فهرست فایل‌های لازم را دارد.
+### جایگزینی فونت
+
+فایل `.woff2` را در `apps/web/src/fonts/` بگذارید و یک ورودی به آرایهٔ `src`
+در `apps/web/src/fonts/index.ts` اضافه کنید. `next/font/local` بقیه‌اش را
+انجام می‌دهد — نه `globals.css` تغییر می‌کند نه `tailwind.config.ts`.
+
+### جایگزینی لوگو
+
+`apps/web/public/brand/mark.svg` را عوض کنید (باید یک `<path>` با
+`fill="currentColor"` و یک `viewBox` داشته باشد)، سپس:
+
+```bash
+node apps/web/scripts/generate-icons.mjs
+```
+
+این دستور کل مجموعه را بازتولید می‌کند: آیکون manifest، نسخه‌های maskable
+اندروید، آیکون iOS، تصاویر splash برای TWA و فاوآیکون. مسیر درون‌خطی در
+`src/modules/auth/components/BrandMark.tsx` را هم به‌روزرسانی کنید.
+
+### فایل‌های صوتی
+
+`.mp3` (ترجیحاً) را در `apps/web/public/audio/` بگذارید. نام‌ها باید با
+`SOUND_LIBRARY` در `src/modules/profile/data/checklists.ts` بخوانند. فایل‌ها
+باید loop-safe باشند — پخش با `loop = true` انجام می‌شود و هر سکوت ابتدا یا
+انتها در هر چرخه شنیده می‌شود.
 
 ## هشدار پزشکی
 

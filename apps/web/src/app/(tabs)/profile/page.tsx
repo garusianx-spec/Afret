@@ -5,6 +5,7 @@ import { HeartHandshake } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Card, CardTitle, SectionTitle } from '@/components/ui';
 import { useHydrated } from '@/hooks/useHydrated';
+import { AccountCard } from '@/modules/auth/components';
 import { cn } from '@/lib/utils';
 import { MemoryAlbum } from '@/modules/profile/components/MemoryAlbum';
 import { NotificationSettings } from '@/modules/profile/components/NotificationSettings';
@@ -34,6 +35,8 @@ export default function ProfilePage() {
       <AppHeader title="حساب و ابزارها" subtitle={profile.displayName} />
 
       <main className="afrat-page flex flex-col gap-3 pt-3">
+        <AccountCard />
+
         <Card>
           <CardTitle>وضعیت فعلی من</CardTitle>
           <div role="radiogroup" aria-label="انتخاب وضعیت" className="grid grid-cols-2 gap-2">

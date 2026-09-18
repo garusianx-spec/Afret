@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar';
+import { AuthProvider } from '@/modules/auth';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -35,8 +36,10 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <ServiceWorkerRegistrar />
+      <AuthProvider>
+        {children}
+        <ServiceWorkerRegistrar />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

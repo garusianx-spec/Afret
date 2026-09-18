@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { config } from '@/lib/config';
+import { authHeader } from '@/modules/auth/lib/tokenBridge';
 
 /**
  * VAPID keys travel as base64url; `applicationServerKey` wants a BufferSource.
@@ -71,7 +72,7 @@ export function usePushSubscription() {
       await fetch(`${config.apiUrl}/api/push/subscribe`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify(subscription.toJSON()),
       });
       setState('subscribed');
@@ -90,7 +91,7 @@ export function usePushSubscription() {
       await fetch(`${config.apiUrl}/api/push/unsubscribe`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ endpoint: subscription.endpoint }),
       }).catch(() => undefined);
 

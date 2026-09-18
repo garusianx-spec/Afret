@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createId } from '@/lib/utils';
-import { useUserStore } from '@/stores/userStore';
+import { useAuthStore } from '@/modules/auth/store/authStore';
 
 import {
   ApiError,
@@ -87,9 +87,11 @@ export function useChatSocket({
   enabled = true,
   pageSize = 30,
 }: UseChatSocketOptions): UseChatSocketResult {
-  const token = useUserStore((s) => s.token);
-  const meId = useUserStore((s) => s.profile?.id ?? 'anonymous');
-  const myName = useUserStore((s) => s.profile?.displayName ?? 'شما');
+  // Identity comes from the verified session. The socket factory pulls the
+  // token itself through the bridge, so only the user id is needed here —
+  // it keys optimistic authorship and the own-message check.
+  const meId = useAuthStore((s) => s.user?.id ?? 'anonymous');
+  const myName = useAuthStore((s) => s.user?.fullName ?? 'شما');
 
   const status = useChatStore((s) => s.status);
   const room = useChatStore(useMemo(() => selectRoom(roomId), [roomId]));
@@ -262,7 +264,7 @@ export function useChatSocket({
     store.getState().ensureRoom(roomId);
     store.getState().setStatus(navigator.onLine ? 'connecting' : 'offline');
 
-    const socket = acquireSocket({ token: token ?? undefined });
+    const socket = acquireSocket();
     socketRef.current = socket;
 
     const controller = new AbortController();
@@ -485,7 +487,7 @@ export function useChatSocket({
     };
     // `flushOutbox` / `loadPage` are stable per roomId; listing them keeps the
     // exhaustive-deps lint honest without re-running on every render.
-  }, [enabled, roomId, token, meId, store, flushOutbox, loadPage, refreshPendingCount]);
+  }, [enabled, roomId, meId, store, flushOutbox, loadPage, refreshPendingCount]);
 
   /* ---------------------------------------------------------------- *
    * Public actions
