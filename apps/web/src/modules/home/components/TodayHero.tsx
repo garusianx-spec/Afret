@@ -1,6 +1,6 @@
 'use client';
 
-import { Baby, Droplets, HeartPulse, Sparkles } from 'lucide-react';
+import { Baby, Droplets, HeartPulse, Sparkles, Thermometer } from 'lucide-react';
 
 import { Chip } from '@/components/ui';
 import { ProgressRing } from '@/components/ui/ProgressRing';
@@ -22,6 +22,7 @@ export function TodayHero({ profile }: { profile: UserProfile }) {
     case 'postpartum':
       return <BabyHero profile={profile} />;
     case 'ttc':
+      return <FertilityHero profile={profile} />;
     case 'cycle':
     default:
       return <CycleHero profile={profile} />;
@@ -168,8 +169,6 @@ function CycleHero({ profile }: { profile: UserProfile }) {
     );
   }
 
-  const ttc = profile.mode === 'ttc';
-
   return (
     <HeroShell>
       <div className="flex items-center gap-4">
@@ -200,12 +199,73 @@ function CycleHero({ profile }: { profile: UserProfile }) {
                 ? 'امروز در پنجرهٔ باروری هستید'
                 : `${toFaDigits(Math.max(0, cycle.daysUntilNextPeriod))} روز مانده`}
             </Chip>
-            {ttc ? (
-              <Chip tone="coral">تخمک‌گذاری: {jalaliLong(cycle.ovulationDate)}</Chip>
-            ) : null}
           </div>
         </div>
       </div>
+    </HeroShell>
+  );
+}
+
+/**
+ * Mode B (TTC) hero. Kept separate from `CycleHero` rather than branching
+ * inside it: the fertile window is the whole point of this screen, not a
+ * secondary chip, so it gets its own layout with the window as the headline.
+ */
+function FertilityHero({ profile }: { profile: UserProfile }) {
+  const cycle = resolveCycle(profile);
+
+  if (!cycle) {
+    return (
+      <HeroShell tint="mint">
+        <p className="text-sm leading-7 text-ink">
+          اولین روز آخرین قاعدگی خود را ثبت کنید تا پنجرهٔ باروری محاسبه شود.
+        </p>
+      </HeroShell>
+    );
+  }
+
+  return (
+    <HeroShell tint="mint">
+      <div className="flex items-center gap-4">
+        <ProgressRing
+          value={cycle.progress}
+          size={92}
+          label={`روز ${toFaDigits(cycle.day)} از چرخه`}
+        >
+          {cycle.isFertileToday ? (
+            <Droplets className="size-8 text-mint" aria-hidden="true" />
+          ) : (
+            <span className="flex flex-col leading-tight">
+              <span className="text-2xl font-bold text-primary-deep">
+                {toFaDigits(cycle.day)}
+              </span>
+              <span className="text-[10px] text-ink-muted">روز چرخه</span>
+            </span>
+          )}
+        </ProgressRing>
+
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-bold text-ink">
+            {cycle.isFertileToday ? 'امروز روز پرباروری است' : `فاز ${PHASE_LABELS[cycle.phase]}`}
+          </h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            پنجرهٔ باروری: {jalaliLong(cycle.fertileWindow.start)} تا{' '}
+            {jalaliLong(cycle.fertileWindow.end)}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Chip tone="mint">
+              <Thermometer className="size-3.5" aria-hidden="true" />
+              تخمک‌گذاری: {jalaliLong(cycle.ovulationDate)}
+            </Chip>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-4 rounded-2xl bg-surface-card/70 p-3 text-xs leading-6 text-ink">
+        <span className="font-bold text-primary-deep">نکتهٔ زوجین: </span>
+        نزدیکی هر یک تا دو روز در طول پنجرهٔ باروری، شانس باروری را در بالاترین
+        حد نگه می‌دارد.
+      </p>
     </HeroShell>
   );
 }

@@ -165,7 +165,13 @@ export async function authRoutes(app: FastifyInstance) {
         fullName,
       });
 
-      await ensureDefaultMemberships(user.id);
+      // The default rooms (cohorts, topic forums, and the legacy demo
+      // consult room) are mother-facing content. A clinician joining them
+      // means her own name shows up as a room title in her own inbox — she
+      // gets patients through provisioned 1:1 consult rooms instead.
+      if (user.role === 'mother') {
+        await ensureDefaultMemberships(user.id);
+      }
 
       request.log.info({ userId: user.id }, 'user registered');
       const issued = await issueSession(request, reply, user);

@@ -88,14 +88,27 @@
   --afrat-mint: 72 187 120; /* #48BB78 */
   --afrat-mint-soft: 232 248 238;
 
-  /* Surfaces carry a plum tint rather than the old lavender one, so a white
-     card still reads as a distinct layer above the page. */
-  --afrat-surface: 250 247 249; /* #FAF7F9 */
+  /* ------------------------------------------------------------------ *
+   * 60-30-10 rule.
+   *
+   *   60% canvas   — surface / surface-card, nearly white, where the eye
+   *                  rests. Almost the whole screen.
+   *   30% contrast — `ink`, a deep plum-charcoal used for headings, body
+   *                  text and structural lines. It shares the brand's hue
+   *                  family rather than being a generic near-black, so the
+   *                  page reads as "the plum app" even where no accent is
+   *                  visible at all.
+   *   10% accent   — `primary`, spent ONLY on primary CTAs, the active nav
+   *                  state and selected pills. Never a large fill, never a
+   *                  full-card background — see the discipline note above
+   *                  each component that used to lean on it more broadly.
+   * ------------------------------------------------------------------ */
+  --afrat-surface: 253 251 252; /* #FDFBFC */
   --afrat-surface-card: 255 255 255; /* #FFFFFF */
   --afrat-surface-border: 243 232 238; /* #F3E8EE */
 
-  --afrat-ink: 45 43 63; /* #2D2B3F */
-  --afrat-ink-muted: 107 104 126; /* #6B687E */
+  --afrat-ink: 42 24 40; /* #2A1828 — deep plum charcoal, 16.2:1 on surface */
+  --afrat-ink-muted: 107 104 126; /* #6B687E — secondary text, 5.2:1 on surface */
   --afrat-ink-faint: 155 152 172;
 }
 

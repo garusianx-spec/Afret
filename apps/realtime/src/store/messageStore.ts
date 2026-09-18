@@ -7,6 +7,7 @@ import type {
   OutgoingMessage,
   ReadReceipt,
 } from '../types.js';
+import { membershipStore } from './membershipStore.js';
 
 /**
  * Reference message store.
@@ -29,7 +30,11 @@ import type {
  */
 export interface MessageStore {
   listRooms(userId: string): Promise<ChatRoom[]>;
-  getRoom(roomId: string): Promise<ChatRoom | undefined>;
+  /**
+   * `viewerId`, when given, resolves a per-participant consult room's title
+   * and counterpart from that viewer's side — see `createConsultRoom`.
+   */
+  getRoom(roomId: string, viewerId?: string): Promise<ChatRoom | undefined>;
 
   /** Newest-first page, walking backwards from `cursor`. */
   getMessages(params: {
@@ -56,6 +61,18 @@ export interface MessageStore {
   setReadCursor(receipt: Omit<ReadReceipt, 'at'>): Promise<ReadReceipt>;
 
   search(params: { q: string; roomId?: string }): Promise<ChatMessage[]>;
+
+  /**
+   * Provisions (or returns the existing) private consultation room between
+   * one patient and one doctor. Idempotent: calling it twice for the same
+   * pair returns the same room rather than creating a duplicate.
+   */
+  createConsultRoom(patient: ChatUser, doctor: ChatUser): Promise<ChatRoom>;
+
+  /** Every patient who shares a provisioned consult room with this doctor. */
+  listPatientsForDoctor(
+    doctorId: string,
+  ): Promise<{ room: ChatRoom; patient: ChatUser }[]>;
 }
 
 /** Cursors are opaque to the client; base64 keeps them from looking editable. */
@@ -129,6 +146,11 @@ export class InMemoryMessageStore implements MessageStore {
   /** `${roomId}:${clientId}` → messageId, for idempotent appends. */
   private clientIdIndex = new Map<string, string>();
   private receipts = new Map<string, ReadReceipt>();
+  /** roomId → the two sides of a provisioned 1:1 consult room. */
+  private consultParticipants = new Map<
+    string,
+    { patient: ChatUser; doctor: ChatUser }
+  >();
 
   constructor() {
     SEED_ROOMS.forEach((room) => {
@@ -168,13 +190,34 @@ export class InMemoryMessageStore implements MessageStore {
     );
   }
 
-  async listRooms(userId: string): Promise<ChatRoom[]> {
-    return [...this.rooms.values()].map((room) => {
-      const messages = this.messages.get(room.id) ?? [];
-      const last = messages[messages.length - 1];
-      const readSeq = this.receipts.get(`${room.id}:${userId}`)?.lastReadSeq ?? 0;
+  /**
+   * A provisioned consult room has no single fixed "other side" — it depends
+   * who's asking. The patient sees the doctor as the counterpart; the doctor
+   * sees the patient. Every other room kind keeps its stored, fixed fields.
+   */
+  private resolveForViewer(room: ChatRoom, viewerId?: string): ChatRoom {
+    if (!viewerId) return room;
+    const pair = this.consultParticipants.get(room.id);
+    if (!pair) return room;
 
-      return {
+    const isPatient = viewerId === pair.patient.id;
+    const counterpart = isPatient ? pair.doctor : pair.patient;
+    return { ...room, title: counterpart.displayName, counterpart };
+  }
+
+  /**
+   * Fills in `lastMessage` and `unreadCount` for one room, from one viewer's
+   * side. Shared by `listRooms` and `listPatientsForDoctor` — a room's
+   * stored record never carries these itself, since they are meaningless
+   * without knowing who's asking and what she has already read.
+   */
+  private withActivity(room: ChatRoom, viewerId: string): ChatRoom {
+    const messages = this.messages.get(room.id) ?? [];
+    const last = messages[messages.length - 1];
+    const readSeq = this.receipts.get(`${room.id}:${viewerId}`)?.lastReadSeq ?? 0;
+
+    return this.resolveForViewer(
+      {
         ...room,
         lastMessage: last
           ? {
@@ -185,15 +228,83 @@ export class InMemoryMessageStore implements MessageStore {
               kind: last.kind,
             }
           : undefined,
-        unreadCount: messages.filter(
-          (m) => m.seq > readSeq && m.authorId !== userId,
-        ).length,
-      };
-    });
+        unreadCount: messages.filter((m) => m.seq > readSeq && m.authorId !== viewerId)
+          .length,
+      },
+      viewerId,
+    );
   }
 
-  async getRoom(roomId: string): Promise<ChatRoom | undefined> {
-    return this.rooms.get(roomId);
+  async listRooms(userId: string): Promise<ChatRoom[]> {
+    // Membership-scoped: without this, `listRooms` handed back every room
+    // in the store to every caller — including other patients' private
+    // consult rooms, which is exactly the leak a provisioned 1:1 room must
+    // not have. Default (cohort/topic/…) rooms are safe here too, since
+    // every account is auto-enrolled in them at registration.
+    const memberships = await membershipStore.listRoomsForUser(userId);
+    const memberRoomIds = new Set(memberships.map((m) => m.roomId));
+
+    return [...this.rooms.values()]
+      .filter((room) => memberRoomIds.has(room.id))
+      .map((room) => this.withActivity(room, userId));
+  }
+
+  async getRoom(roomId: string, viewerId?: string): Promise<ChatRoom | undefined> {
+    const room = this.rooms.get(roomId);
+    return room ? this.resolveForViewer(room, viewerId) : undefined;
+  }
+
+  async createConsultRoom(patient: ChatUser, doctor: ChatUser): Promise<ChatRoom> {
+    const roomId = `consult_${patient.id}_${doctor.id}`;
+    const existing = this.rooms.get(roomId);
+    if (existing) return this.resolveForViewer(existing, patient.id);
+
+    const room: ChatRoom = {
+      id: roomId,
+      kind: 'consult',
+      title: doctor.displayName, // stored default = the patient's-side view
+      description: 'مشاورهٔ خصوصی',
+      counterpart: doctor,
+      memberCount: 2,
+      unreadCount: 0,
+    };
+
+    this.rooms.set(roomId, room);
+    this.messages.set(roomId, []);
+    this.seqCounters.set(roomId, 0);
+    this.consultParticipants.set(roomId, { patient, doctor });
+
+    // Without these, `listRooms`'s membership filter would hide this room
+    // from both sides the instant it was created.
+    await Promise.all([
+      membershipStore.join({ roomId, userId: patient.id }),
+      membershipStore.join({ roomId, userId: doctor.id }),
+    ]);
+
+    await this.append(
+      {
+        clientId: `seed_welcome_${roomId}`,
+        roomId,
+        kind: 'system',
+        body: 'این گفتگو خصوصی و رمزگذاری‌شده است. پاسخ معمولاً طی چند ساعت ارسال می‌شود.',
+      },
+      { id: 'system', displayName: 'آفرت' },
+    );
+
+    return this.resolveForViewer(room, patient.id);
+  }
+
+  async listPatientsForDoctor(
+    doctorId: string,
+  ): Promise<{ room: ChatRoom; patient: ChatUser }[]> {
+    const out: { room: ChatRoom; patient: ChatUser }[] = [];
+    for (const [roomId, pair] of this.consultParticipants) {
+      if (pair.doctor.id !== doctorId) continue;
+      const room = this.rooms.get(roomId);
+      if (!room) continue;
+      out.push({ room: this.withActivity(room, doctorId), patient: pair.patient });
+    }
+    return out;
   }
 
   async getMessages({

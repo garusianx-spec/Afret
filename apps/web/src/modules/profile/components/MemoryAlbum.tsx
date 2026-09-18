@@ -24,7 +24,7 @@ export function MemoryAlbum() {
   const [note, setNote] = useState('');
 
   return (
-    <Card>
+    <Card id="memories">
       <CardTitle
         action={
           <button

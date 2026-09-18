@@ -1,7 +1,7 @@
 import { hashPassword } from './password.js';
 import { normalizeMobile } from './mobile.js';
 import { userStore } from './userStore.js';
-import type { UserRole } from './types.js';
+import type { JourneyMode, RiskFlag, UserRole } from './types.js';
 
 /**
  * Pre-seeded demo accounts.
@@ -36,7 +36,62 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     password: 'Afrat1404',
     fullName: 'دکتر سارا احمدی',
     role: 'doctor',
-    note: 'پزشک — برای آزمودن گفتگوی مشاوره از دو طرف',
+    note: 'پزشک — برای آزمودن گفتگوی مشاوره از دو طرف و پنل کلینیکی',
+  },
+];
+
+/**
+ * Additional demo patients, each given a real provisioned consult room with
+ * the demo doctor above, so her patient list has more than one row to show.
+ * `journeyMode`/`journeyWeek`/`riskFlag` are set directly here for the demo;
+ * in production these come from the mother's own self-report
+ * (`PATCH /api/profile/journey`) and the doctor's own flag
+ * (`PATCH /api/doctor/patients/:id/flag`) — never fabricated automatically.
+ */
+interface DemoPatient {
+  mobile: string;
+  fullName: string;
+  journeyMode: JourneyMode;
+  journeyWeek: number;
+  riskFlag: RiskFlag;
+  riskFlagNote?: string;
+  firstMessage: string;
+}
+
+export const DEMO_PATIENTS: DemoPatient[] = [
+  {
+    mobile: '09121110001',
+    fullName: 'زهرا کریمی',
+    journeyMode: 'pregnancy',
+    journeyWeek: 32,
+    riskFlag: 'urgent',
+    riskFlagNote: 'فشار خون بالا در دو نوبت اخیر — نیاز به ویزیت زودتر',
+    firstMessage: 'سلام دکتر، امروز فشارم رو گرفتم ۱۴۵ روی ۹۵ بود. نگران شدم.',
+  },
+  {
+    mobile: '09121110002',
+    fullName: 'نگین صادقی',
+    journeyMode: 'pregnancy',
+    journeyWeek: 24,
+    riskFlag: 'watch',
+    riskFlagNote: 'تست تحمل گلوکز را باید هفتهٔ آینده انجام دهد',
+    firstMessage: 'سلام، نوبت تست قند بارداری من کِی هست؟',
+  },
+  {
+    mobile: '09121110003',
+    fullName: 'الهام باقری',
+    journeyMode: 'ttc',
+    journeyWeek: 3,
+    riskFlag: 'normal',
+    firstMessage: 'سلام دکتر، سوالی دربارهٔ زمان مناسب برای شروع اسید فولیک داشتم.',
+  },
+  {
+    mobile: '09121110004',
+    fullName: 'مینا توکلی',
+    journeyMode: 'postpartum',
+    journeyWeek: 6,
+    riskFlag: 'normal',
+    firstMessage: 'سلام، برنامهٔ واکسیناسیون دو ماهگی رو میخواستم بپرسم.',
   },
 ];
 
@@ -78,5 +133,74 @@ export async function seedDemoAccounts(
     await userStore.update(user.id, { mobileVerified: true });
 
     log(`Seeded demo account: ${account.mobile} / ${account.password} (${account.role})`);
+  }
+
+  await seedDemoPatients(log);
+}
+
+async function seedDemoPatients(log: (message: string) => void): Promise<void> {
+  const { messageStore } = await import('../store/messageStore.js');
+  const { toChatUser } = await import('./middleware.js');
+  const { permissionsFor, ROLE_LABELS } = await import('./types.js');
+
+  const doctorMobile = normalizeMobile('09123456780')!;
+  const doctor = await userStore.findByMobile(doctorMobile);
+  if (!doctor) return; // demo accounts disabled — nothing to wire up
+
+  for (const patientSeed of DEMO_PATIENTS) {
+    const mobile = normalizeMobile(patientSeed.mobile);
+    if (!mobile) continue;
+
+    let patient = await userStore.findByMobile(mobile);
+    if (!patient) {
+      patient = await userStore.create({
+        mobile,
+        passwordHash: await hashPassword('Afrat1404'),
+        fullName: patientSeed.fullName,
+        role: 'mother',
+      });
+      await userStore.update(patient.id, {
+        mobileVerified: true,
+        journeyMode: patientSeed.journeyMode,
+        journeyWeek: patientSeed.journeyWeek,
+        riskFlag: patientSeed.riskFlag,
+        riskFlagNote: patientSeed.riskFlagNote,
+        riskFlagSetAt: new Date().toISOString(),
+      });
+      log(`Seeded demo patient: ${patientSeed.mobile} (${patientSeed.fullName})`);
+    }
+
+    const room = await messageStore.createConsultRoom(
+      toChatUser({
+        id: patient.id,
+        mobile: patient.mobile,
+        role: patient.role,
+        roleLabel: ROLE_LABELS[patient.role],
+        permissions: permissionsFor(patient.role),
+        displayName: patient.fullName ?? patientSeed.fullName,
+      }),
+      toChatUser({
+        id: doctor.id,
+        mobile: doctor.mobile,
+        role: doctor.role,
+        roleLabel: ROLE_LABELS[doctor.role],
+        permissions: permissionsFor(doctor.role),
+        displayName: doctor.fullName ?? 'پزشک',
+      }),
+    );
+
+    // A one-line opener from the patient, so the doctor's inbox previews
+    // something real instead of the generic welcome system message.
+    await messageStore.append(
+      { clientId: `seed_${patient.id}_msg1`, roomId: room.id, kind: 'text', body: patientSeed.firstMessage },
+      toChatUser({
+        id: patient.id,
+        mobile: patient.mobile,
+        role: patient.role,
+        roleLabel: ROLE_LABELS[patient.role],
+        permissions: permissionsFor(patient.role),
+        displayName: patient.fullName ?? patientSeed.fullName,
+      }),
+    );
   }
 }

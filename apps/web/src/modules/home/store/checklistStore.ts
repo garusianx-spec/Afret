@@ -29,7 +29,9 @@ export const DAILY_ITEMS: Record<string, ChecklistItem[]> = {
   cycle: [
     { id: 'water', label: 'نوشیدن آب', target: 8, unit: 'لیوان' },
     { id: 'mood', label: 'ثبت حال و خلق‌وخو' },
-    { id: 'symptoms', label: 'ثبت علائم قاعدگی' },
+    { id: 'skin', label: 'وضعیت پوست' },
+    { id: 'cramps', label: 'شدت درد قاعدگی' },
+    { id: 'energy', label: 'سطح انرژی امروز' },
   ],
   postpartum: [
     { id: 'vitamin', label: 'مصرف مکمل شیردهی' },

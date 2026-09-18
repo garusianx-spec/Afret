@@ -179,7 +179,14 @@ export function useBackgroundAudio(): BackgroundAudioControls {
       const started = audio.play();
 
       if (started && typeof started.catch === 'function') {
-        started.catch(() => {
+        started.catch((err: unknown) => {
+          // Switching tracks fast interrupts the previous play() with an
+          // AbortError — that is not a policy block, it is expected, and the
+          // `playing` event from the *new* track will supersede this state a
+          // moment later. Only a real autoplay refusal should surface an error.
+          const name = err instanceof DOMException ? err.name : '';
+          if (name === 'AbortError') return;
+
           setPlaying(false);
           setLoading(false);
           setError('پخش خودکار توسط مرورگر مسدود شد. دوباره تلاش کنید.');

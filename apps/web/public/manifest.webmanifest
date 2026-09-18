@@ -14,8 +14,8 @@
     "minimal-ui"
   ],
   "orientation": "portrait",
-  "background_color": "#FAF7F9",
-  "theme_color": "#FAF7F9",
+  "background_color": "#FDFBFC",
+  "theme_color": "#FDFBFC",
   "categories": [
     "health",
     "lifestyle",

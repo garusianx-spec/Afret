@@ -43,7 +43,7 @@ export async function chatRoutes(app: FastifyInstance) {
   app.get<{ Params: { roomId: string } }>(
     '/api/chat/rooms/:roomId',
     async (request, reply) => {
-      const room = await messageStore.getRoom(request.params.roomId);
+      const room = await messageStore.getRoom(request.params.roomId, request.authUser!.id);
       if (!room) return reply.code(404).send({ message: 'اتاق یافت نشد.' });
       return room;
     },

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { LogOut, ShieldCheck, ShieldAlert, UserRound } from 'lucide-react';
 
-import { Card, CardTitle, Chip } from '@/components/ui';
+import { Card, CardTitle, Chip, IconBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 import { useAuth } from '../AuthProvider';
@@ -33,9 +33,7 @@ export function AccountCard() {
       </CardTitle>
 
       <div className="flex items-center gap-3">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary-deep">
-          <UserRound className="size-6" aria-hidden="true" />
-        </span>
+        <IconBadge icon={UserRound} tone="primary" size="lg" shape="pill" />
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-ink">

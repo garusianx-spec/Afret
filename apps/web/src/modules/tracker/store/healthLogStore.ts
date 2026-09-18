@@ -11,7 +11,10 @@ export type LogKind =
   | 'bloodPressure'
   | 'mood'
   | 'nausea'
-  | 'symptom';
+  | 'symptom'
+  | 'bbt' // basal body temperature — TTC mode
+  | 'cervicalMucus' // TTC mode
+  | 'kickCount'; // fetal movement session — pregnancy mode, third trimester
 
 export interface HealthLog {
   id: string;
@@ -37,7 +40,18 @@ export const LOG_META: Record<
   mood: { label: 'حال و خلق‌وخو', unit: '', step: 1, min: 1, max: 5 },
   nausea: { label: 'شدت تهوع', unit: '', step: 1, min: 0, max: 4 },
   symptom: { label: 'علائم', unit: '', step: 1, min: 0, max: 1 },
+  bbt: { label: 'دمای پایه بدن', unit: '°C', step: 0.05, min: 35, max: 39 },
+  cervicalMucus: { label: 'ترشحات دهانهٔ رحم', unit: '', step: 1, min: 0, max: 3 },
+  kickCount: { label: 'شمارش حرکات جنین', unit: 'حرکت', step: 1, min: 0, max: 200 },
 };
+
+/** Cervical mucus scale used by the TTC logger — 0 = driest, 3 = most fertile. */
+export const MUCUS_SCALE = [
+  { value: 0, label: 'خشک' },
+  { value: 1, label: 'چسبنده' },
+  { value: 2, label: 'کِرمی' },
+  { value: 3, label: 'شفاف و کِشدار (سفیدهٔ تخم‌مرغ)' },
+] as const;
 
 /** Glucose targets in pregnancy (mg/dL) — the gestational-diabetes view. */
 export const GLUCOSE_TARGETS = {

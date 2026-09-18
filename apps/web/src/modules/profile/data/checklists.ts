@@ -53,12 +53,18 @@ export interface SoundTrack {
   category: 'نویز سفید' | 'لالایی' | 'صدای طبیعت';
 }
 
+/**
+ * `.wav` placeholders ship in this build (synthesised, loop-safe, ~8s each —
+ * see `public/audio/README.md`) so the player is testable end to end without
+ * waiting on licensed recordings. Swap `src` to `.mp3` once real masters are
+ * dropped in; nothing else here needs to change.
+ */
 export const SOUND_LIBRARY: SoundTrack[] = [
-  { id: 'white', title: 'نویز سفید ملایم', src: '/audio/white-noise.mp3', category: 'نویز سفید' },
-  { id: 'pink', title: 'نویز صورتی', src: '/audio/pink-noise.mp3', category: 'نویز سفید' },
-  { id: 'heartbeat', title: 'ضربان قلب مادر', src: '/audio/heartbeat.mp3', category: 'نویز سفید' },
-  { id: 'rain', title: 'صدای باران', src: '/audio/rain.mp3', category: 'صدای طبیعت' },
-  { id: 'waves', title: 'موج دریا', src: '/audio/waves.mp3', category: 'صدای طبیعت' },
-  { id: 'lullaby-fa', title: 'لالایی لری', src: '/audio/lullaby-lori.mp3', category: 'لالایی' },
-  { id: 'lullaby-classic', title: 'لالایی کلاسیک', src: '/audio/lullaby-classic.mp3', category: 'لالایی' },
+  { id: 'white', title: 'نویز سفید ملایم', src: '/audio/white-noise.wav', category: 'نویز سفید' },
+  { id: 'pink', title: 'نویز صورتی', src: '/audio/pink-noise.wav', category: 'نویز سفید' },
+  { id: 'heartbeat', title: 'ضربان قلب مادر', src: '/audio/heartbeat.wav', category: 'نویز سفید' },
+  { id: 'rain', title: 'صدای باران', src: '/audio/rain.wav', category: 'صدای طبیعت' },
+  { id: 'waves', title: 'موج دریا', src: '/audio/waves.wav', category: 'صدای طبیعت' },
+  { id: 'lullaby-fa', title: 'لالایی لری', src: '/audio/lullaby-lori.wav', category: 'لالایی' },
+  { id: 'lullaby-classic', title: 'لالایی کلاسیک', src: '/audio/lullaby-classic.wav', category: 'لالایی' },
 ];

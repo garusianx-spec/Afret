@@ -2,7 +2,7 @@
 
 import { Bell, BellOff } from 'lucide-react';
 
-import { Card, CardTitle } from '@/components/ui';
+import { Card, CardTitle, IconBadge } from '@/components/ui';
 import { usePushSubscription } from '@/components/pwa/usePushSubscription';
 
 const COPY: Record<string, string> = {
@@ -22,17 +22,11 @@ export function NotificationSettings() {
       <CardTitle>اعلان‌ها</CardTitle>
 
       <div className="flex items-center gap-3">
-        <span
-          className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-            active ? 'bg-mint-soft text-mint' : 'bg-surface text-ink-muted'
-          }`}
-        >
-          {active ? (
-            <Bell className="size-5" aria-hidden="true" />
-          ) : (
-            <BellOff className="size-5" aria-hidden="true" />
-          )}
-        </span>
+        <IconBadge
+          icon={active ? Bell : BellOff}
+          tone={active ? 'mint' : 'neutral'}
+          shape="pill"
+        />
 
         <p className="flex-1 text-xs leading-6 text-ink-muted">{COPY[state]}</p>
 

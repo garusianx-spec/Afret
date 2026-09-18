@@ -7,6 +7,8 @@ import type { Server as SocketServer } from 'socket.io';
 import { env } from './env.js';
 import { authRoutes } from './http/authRoutes.js';
 import { chatRoutes } from './http/chatRoutes.js';
+import { doctorRoutes } from './http/doctorRoutes.js';
+import { profileRoutes } from './http/profileRoutes.js';
 import { pushRoutes } from './http/pushRoutes.js';
 import { seedDemoAccounts } from './auth/seed.js';
 import { userStore } from './auth/userStore.js';
@@ -96,6 +98,8 @@ app.get('/health', async () => ({
 
 await app.register(authRoutes);
 await app.register(chatRoutes);
+await app.register(profileRoutes);
+await app.register(doctorRoutes);
 await app.register(pushRoutes);
 
 if (!configurePush()) {
@@ -105,10 +109,15 @@ if (!configurePush()) {
 // Demo accounts, so the app can be opened without registering. Gated out of
 // production unless ALLOW_DEMO_ACCOUNTS=true — see auth/seed.ts.
 await seedDemoAccounts((message) => app.log.info(message));
+// Default rooms (cohorts, topic forums, the legacy demo consult room) are
+// mother-facing content — a clinician joining them would show her own name
+// as a room title in her own inbox. Same guard as the registration route in
+// authRoutes.ts, applied here too since seeded demo accounts never go
+// through that HTTP path.
 for (const account of await Promise.all(
   ['+989123456789', '+989123456780'].map((m) => userStore.findByMobile(m)),
 )) {
-  if (account) await ensureDefaultMemberships(account.id);
+  if (account && account.role === 'mother') await ensureDefaultMemberships(account.id);
 }
 
 // Socket.io attaches to the same HTTP server, so one port serves both the REST

@@ -24,6 +24,8 @@ export interface UserProfile {
   cycleLength: number;
   /** Average bleeding duration in days (default 5). */
   periodLength: number;
+  /** For the BMI tool — optional, since not every mode asks for it. */
+  heightCm?: number;
 
   /**
    * Clinician override. When present it wins over the LMP calculation —

@@ -5,6 +5,9 @@ import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { SectionTitle } from '@/components/ui';
 import { useHydrated } from '@/hooks/useHydrated';
 import { jalaliWithWeekday } from '@/lib/jalali';
+import { useAuth } from '@/modules/auth';
+import { DoctorHome } from '@/modules/doctor/components/DoctorHome';
+import { useJourneyReporter } from '@/modules/doctor/hooks/useJourneyReporter';
 import { DailyChecklist } from '@/modules/home/components/DailyChecklist';
 import { DailyMessage } from '@/modules/home/components/DailyMessage';
 import { QuickActions } from '@/modules/home/components/QuickActions';
@@ -15,6 +18,18 @@ import { LIFECYCLE_LABELS } from '@/types';
 export default function HomePage() {
   const hydrated = useHydrated();
   const profile = useUserStore((s) => s.profile);
+  const { user } = useAuth();
+
+  // Keeps the server's one-line "where is she in her journey" in step with
+  // this device's local state — see the hook for what it does and doesn't
+  // send. Runs unconditionally (mode-less for a doctor, a no-op) so hook
+  // order never depends on the role branch below.
+  useJourneyReporter(user?.role === 'doctor' ? null : (profile ?? null));
+
+  // A clinician has no cycle or pregnancy of her own — the mother-facing
+  // dashboard below would just be empty state for her. She gets her own
+  // Home entirely: the patient list.
+  if (user?.role === 'doctor') return <DoctorHome displayName={user.fullName ?? 'دکتر'} />;
 
   if (!hydrated || !profile) return <HomeSkeleton />;
 
@@ -31,7 +46,7 @@ export default function HomePage() {
         <DailyMessage profile={profile} />
 
         <SectionTitle hint={LIFECYCLE_LABELS[profile.mode]}>دسترسی سریع</SectionTitle>
-        <QuickActions />
+        <QuickActions mode={profile.mode} />
 
         <SectionTitle>برنامهٔ روزانه</SectionTitle>
         <DailyChecklist mode={profile.mode} />
