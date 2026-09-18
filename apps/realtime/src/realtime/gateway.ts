@@ -9,7 +9,7 @@ import { hasPermission } from '../auth/types.js';
 import { env } from '../env.js';
 import { sendPush } from '../push/webPush.js';
 import { createRedisPair } from '../redis.js';
-import { membershipStore, DEFAULT_ROOMS } from '../store/membershipStore.js';
+import { membershipStore } from '../store/membershipStore.js';
 import { messageStore } from '../store/messageStore.js';
 import type {
   ChatMessage,
@@ -165,16 +165,6 @@ export async function createGateway(httpServer: HttpServer): Promise<AfratServer
     const user = socket.data.user;
     const bucket = new TokenBucket();
     const joined = new Set<string>();
-
-    // Membership is what makes offline push possible, so it must exist before
-    // the first message rather than being created lazily on join.
-    void Promise.all(
-      DEFAULT_ROOMS.map((room) =>
-        membershipStore.join({ roomId: room.id, userId: user.id }),
-      ),
-    ).catch((error) => {
-      io.engine?.emit?.('error', error);
-    });
 
     socket.on('room:join', async (payload, ack) => {
       const parsed = joinSchema.safeParse(payload);

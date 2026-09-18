@@ -25,6 +25,7 @@ import {
   userStore,
 } from '../auth/userStore.js';
 import { requireAuth } from '../auth/middleware.js';
+import { ensureDefaultMemberships } from '../store/membershipStore.js';
 
 /* ------------------------------------------------------------------ *
  * Schemas
@@ -163,6 +164,8 @@ export async function authRoutes(app: FastifyInstance) {
         passwordHash: await hashPassword(password),
         fullName,
       });
+
+      await ensureDefaultMemberships(user.id);
 
       request.log.info({ userId: user.id }, 'user registered');
       const issued = await issueSession(request, reply, user);

@@ -172,7 +172,7 @@ export class InMemoryMembershipStore implements MembershipStore {
 export const membershipStore: MembershipStore = new InMemoryMembershipStore();
 
 /**
- * Rooms a user is auto-enrolled in on first connect.
+ * Rooms every account belongs to from the moment it exists.
  *
  * Cohort rooms would normally be derived from the due date; the open topic
  * rooms are opt-in in the UI but seeded here so a new account is not staring
@@ -183,3 +183,25 @@ export const DEFAULT_ROOMS: { id: string; kind: RoomKind }[] = [
   { id: 'cohort_1404_azar', kind: 'cohort' },
   { id: 'topic_nutrition', kind: 'topic' },
 ];
+
+/**
+ * Enrol a new account in the default rooms.
+ *
+ * Called **once, at registration** — not on login and not on socket connect.
+ *
+ * Not on socket connect, because membership is what offline push reads:
+ * deriving it from a live socket means a mother who signs up, enables
+ * notifications and closes the app has no rows at all, making her the one
+ * person guaranteed not to be notified.
+ *
+ * Not on login either, because leaving a room is a deliberate act and
+ * re-adding it on the next sign-in would silently override it. Adding a new
+ * default room for existing accounts is a migration, not a login side effect.
+ */
+export async function ensureDefaultMemberships(userId: string): Promise<void> {
+  await Promise.all(
+    DEFAULT_ROOMS.map((room) =>
+      membershipStore.join({ roomId: room.id, userId }),
+    ),
+  );
+}
