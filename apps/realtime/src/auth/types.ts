@@ -1,3 +1,5 @@
+import type { ClinicalReading } from '@afrat/core';
+
 export type UserRole = 'mother' | 'doctor' | 'midwife' | 'nutritionist' | 'moderator' | 'admin';
 
 /** Coarse capability flags derived from the role and embedded in the JWT. */
@@ -69,6 +71,16 @@ export interface UserRecord {
   riskFlag?: RiskFlag;
   riskFlagNote?: string;
   riskFlagSetAt?: string;
+
+  /**
+   * Explicit, revocable consent — off by default. Only while `true` may
+   * `sharedVitals` hold data, and disabling it wipes any stored snapshot
+   * immediately (see PATCH /api/profile/vitals-sharing). No other health
+   * metric (mood, symptoms, BBT, cervical mucus) is ever synced regardless
+   * of this flag.
+   */
+  vitalsSharingEnabled?: boolean;
+  sharedVitals?: { readings: ClinicalReading[]; updatedAt: string };
 }
 
 /** What the client is allowed to see. */
@@ -82,6 +94,8 @@ export interface PublicUser {
   permissions: Permission[];
   journeyMode?: JourneyMode;
   journeyWeek?: number;
+  /** So her own device reflects true server state after a reload — never the readings themselves. */
+  vitalsSharingEnabled: boolean;
 }
 
 export function toPublicUser(user: UserRecord): PublicUser {
@@ -95,6 +109,7 @@ export function toPublicUser(user: UserRecord): PublicUser {
     permissions: permissionsFor(user.role),
     journeyMode: user.journeyMode,
     journeyWeek: user.journeyWeek,
+    vitalsSharingEnabled: user.vitalsSharingEnabled ?? false,
   };
 }
 

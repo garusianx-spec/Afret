@@ -85,3 +85,39 @@ export const FERTILITY_DIET_TIPS = [
   'روی (زینک) در گوشت قرمز و حبوبات برای اسپرم‌سازی مهم است.',
   'مصرف قند و چربی ترانس را برای هر دو نفر محدود کنید.',
 ];
+
+/**
+ * Mode C — general cord-blood-banking screening criteria. These are the
+ * commonly published categories every bank checks, not one specific
+ * provider's protocol — the exact cut-offs differ by lab, which is why
+ * every item says to confirm with the chosen bank rather than stating a
+ * number as universal.
+ */
+export const CORD_BLOOD_ELIGIBILITY: ChecklistTemplateItem[] = [
+  {
+    id: 'gestation',
+    label: 'سن بارداری معمولاً ۳۴ هفته یا بیشتر (بسته به بانک)',
+    group: 'معیارهای عمومی پذیرش',
+    essential: true,
+  },
+  { id: 'singleton', label: 'بارداری تک‌قلو (دوقلویی را با بانک هماهنگ کنید)', group: 'معیارهای عمومی پذیرش' },
+  { id: 'consent-timing', label: 'ثبت‌نام و رضایت‌نامه پیش از هفتهٔ ۳۴–۳۶', group: 'معیارهای عمومی پذیرش', essential: true },
+  { id: 'kit-ready', label: 'کیت جمع‌آوری همراه شما در روز زایمان', group: 'معیارهای عمومی پذیرش' },
+];
+
+export const CORD_BLOOD_CONTRAINDICATIONS: ChecklistTemplateItem[] = [
+  { id: 'infection', label: 'عفونت فعال یا تب در زمان زایمان', group: 'شرایط محدودکننده', essential: true },
+  {
+    id: 'blood-borne',
+    label: 'سابقهٔ HIV، هپاتیت B/C یا سیفلیس تأییدشده در مادر',
+    group: 'شرایط محدودکننده',
+    essential: true,
+  },
+  { id: 'chorio', label: 'کوریوآمنیونیت (عفونت پردهٔ جنینی)', group: 'شرایط محدودکننده' },
+  {
+    id: 'live-vaccine',
+    label: 'دریافت واکسن زنده (مثل سرخک-اوریون-سرخجه) در چند هفتهٔ اخیر',
+    group: 'شرایط محدودکننده',
+  },
+  { id: 'iv-drug', label: 'سابقهٔ مصرف تزریقی مواد مخدر', group: 'شرایط محدودکننده' },
+];

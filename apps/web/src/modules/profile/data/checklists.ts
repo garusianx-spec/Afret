@@ -1,3 +1,5 @@
+import { config } from '@/lib/config';
+
 export interface ChecklistTemplateItem {
   id: string;
   label: string;
@@ -48,16 +50,31 @@ export const LAYETTE: ChecklistTemplateItem[] = [
 export interface SoundTrack {
   id: string;
   title: string;
-  /** Path under `public/audio/`; see the README there. */
+  /**
+   * A path under `public/audio/`, or a full `https://` URL to a remote
+   * track — `resolveTrackSrc` below decides which. See the README in
+   * `public/audio/` for the local-file placeholders' format constraints.
+   */
   src: string;
   category: 'نویز سفید' | 'لالایی' | 'صدای طبیعت';
+}
+
+/**
+ * `config.audioBaseUrl` lets ops move the whole library to a CDN by setting
+ * one env var — an already-absolute `src` (a licensor's own CDN link, say)
+ * is left untouched either way.
+ */
+export function resolveTrackSrc(src: string): string {
+  if (/^https?:\/\//.test(src)) return src;
+  return config.audioBaseUrl ? `${config.audioBaseUrl}${src}` : src;
 }
 
 /**
  * `.wav` placeholders ship in this build (synthesised, loop-safe, ~8s each —
  * see `public/audio/README.md`) so the player is testable end to end without
  * waiting on licensed recordings. Swap `src` to `.mp3` once real masters are
- * dropped in; nothing else here needs to change.
+ * dropped in, or point `NEXT_PUBLIC_AUDIO_BASE_URL` at a CDN — nothing else
+ * here needs to change.
  */
 export const SOUND_LIBRARY: SoundTrack[] = [
   { id: 'white', title: 'نویز سفید ملایم', src: '/audio/white-noise.wav', category: 'نویز سفید' },

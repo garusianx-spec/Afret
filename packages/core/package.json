@@ -1,0 +1,22 @@
+{
+  "name": "@afrat/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-agnostic domain logic shared by apps/web and apps/realtime: WHO growth-standard math, clinical threshold rules.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

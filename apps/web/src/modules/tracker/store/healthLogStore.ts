@@ -66,21 +66,24 @@ interface HealthLogState {
   logs: HealthLog[];
   add: (log: Omit<HealthLog, 'id'>) => void;
   remove: (id: string) => void;
-  /** Newest first, optionally filtered by kind. */
-  byKind: (kind: LogKind) => HealthLog[];
 }
 
+/**
+ * There is deliberately no `byKind` method here: a selector that computes
+ * a filtered/sorted array (`useHealthLogStore((s) => s.someMethod())`)
+ * returns a new array reference on every snapshot check, which breaks
+ * `useSyncExternalStore`'s equality test and causes an infinite render
+ * loop (see the fix in `GrowthChart.tsx`/`babyGrowthStore.ts` for the
+ * incident this comment is here to prevent a repeat of). Select the raw
+ * `logs` array and derive with `useMemo` in the component instead.
+ */
 export const useHealthLogStore = create<HealthLogState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       logs: [],
       add: (log) =>
         set((state) => ({ logs: [{ ...log, id: createId('log') }, ...state.logs] })),
       remove: (id) => set((state) => ({ logs: state.logs.filter((l) => l.id !== id) })),
-      byKind: (kind) =>
-        get()
-          .logs.filter((l) => l.kind === kind)
-          .sort((a, b) => Date.parse(b.at) - Date.parse(a.at)),
     }),
     {
       name: 'afrat-health-logs',

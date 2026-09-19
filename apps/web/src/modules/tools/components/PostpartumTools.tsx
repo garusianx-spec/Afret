@@ -1,7 +1,9 @@
 import { Syringe } from 'lucide-react';
 
 import { AllergyTracker } from './AllergyTracker';
+import { BabyNameDirectory } from './BabyNameDirectory';
 import { LinkCard } from './LinkCard';
+import { MilestoneMemories } from './MilestoneMemories';
 import { ScreenFreePlayIdeas } from './ScreenFreePlayIdeas';
 import { MemoryAlbum } from '@/modules/profile/components/MemoryAlbum';
 
@@ -16,9 +18,11 @@ export function PostpartumTools() {
         title="جدول و یادآور واکسیناسیون"
         subtitle="برنامهٔ کامل ایمن‌سازی — تب «تقویم»"
       />
+      <MilestoneMemories />
       <AllergyTracker />
       <ScreenFreePlayIdeas />
       <MemoryAlbum />
+      <BabyNameDirectory />
     </>
   );
 }

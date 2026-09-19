@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { SoundTrack } from '../data/checklists';
+import { resolveTrackSrc, type SoundTrack } from '../data/checklists';
 
 /**
  * Looping audio for the white-noise / lullaby player.
@@ -44,6 +44,20 @@ export interface BackgroundAudioControls extends BackgroundAudioState {
   setSleepTimer: (minutes: number) => void;
 }
 
+/** Distinguishes the four MediaError codes instead of one generic message. */
+function describeMediaError(audio: HTMLAudioElement): string {
+  switch (audio.error?.code) {
+    case MediaError.MEDIA_ERR_NETWORK:
+      return 'اتصال اینترنت قطع شد. دوباره تلاش کنید.';
+    case MediaError.MEDIA_ERR_DECODE:
+      return 'فایل صوتی خراب یا ناسازگار با این مرورگر است.';
+    case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+      return 'این صدا در دسترس نیست یا قالب آن پشتیبانی نمی‌شود.';
+    default:
+      return 'پخش این صدا ممکن نشد.';
+  }
+}
+
 export function useBackgroundAudio(): BackgroundAudioControls {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sleepTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +79,10 @@ export function useBackgroundAudio(): BackgroundAudioControls {
       audio.preload = 'auto';
       // Keeps iOS from treating it as a video and trying to go fullscreen.
       audio.setAttribute('playsinline', '');
+      // Harmless for same-origin local files, and required for a future
+      // remote CDN track to expose timing/buffering info to this element
+      // instead of failing silently on a cross-origin response.
+      audio.crossOrigin = 'anonymous';
       audioRef.current = audio;
     }
     return audioRef.current;
@@ -90,7 +108,7 @@ export function useBackgroundAudio(): BackgroundAudioControls {
     const onError = () => {
       setPlaying(false);
       setLoading(false);
-      setError('پخش این صدا ممکن نشد. فایل صوتی در دسترس نیست.');
+      setError(describeMediaError(audio));
     };
 
     audio.addEventListener('playing', onPlaying);
@@ -168,7 +186,7 @@ export function useBackgroundAudio(): BackgroundAudioControls {
       }
 
       if (current?.id !== track.id) {
-        audio.src = track.src;
+        audio.src = resolveTrackSrc(track.src);
         setCurrent(track);
         setError(null);
       }

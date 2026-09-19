@@ -1,9 +1,16 @@
+import { summarizeClinicalAlerts } from '@afrat/core';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { requirePermission } from '../auth/middleware.js';
 import { userStore } from '../auth/userStore.js';
 import { messageStore } from '../store/messageStore.js';
+
+async function authorizedPatient(doctorId: string, patientId: string) {
+  const pairs = await messageStore.listPatientsForDoctor(doctorId);
+  if (!pairs.some((p) => p.patient.id === patientId)) return null;
+  return userStore.findById(patientId);
+}
 
 const flagSchema = z.object({
   flag: z.enum(['normal', 'watch', 'urgent']),
@@ -77,6 +84,29 @@ export async function doctorRoutes(app: FastifyInstance) {
       });
 
       return reply.code(204).send();
+    },
+  );
+
+  /**
+   * The clinical-sync drawer. Returns "not shared" for any patient who
+   * hasn't opted in — even one this doctor is otherwise authorized to see —
+   * since the sharing flag, not the doctor-patient relationship, is what
+   * gates this specific data.
+   */
+  app.get<{ Params: { patientId: string } }>(
+    '/api/doctor/patients/:patientId/vitals',
+    { preHandler: requirePermission('consult:respond') },
+    async (request, reply) => {
+      const patient = await authorizedPatient(request.authUser!.id, request.params.patientId);
+      if (!patient) return reply.code(404).send({ message: 'این فرد در فهرست مراجعین شما نیست.' });
+
+      if (!patient.vitalsSharingEnabled || !patient.sharedVitals) {
+        return { sharingEnabled: false as const };
+      }
+
+      const { readings, updatedAt } = patient.sharedVitals;
+      const { overallTier, alerts } = summarizeClinicalAlerts(readings);
+      return { sharingEnabled: true as const, readings, updatedAt, overallTier, alerts };
     },
   );
 }

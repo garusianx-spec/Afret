@@ -42,7 +42,7 @@ await app.register(cors, {
   // Required for the refresh cookie to travel cross-origin between the web
   // app and this service.
   credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 });
 

@@ -11,6 +11,12 @@ export const config = {
   socketPath: process.env.NEXT_PUBLIC_SOCKET_PATH ?? '/realtime',
   vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
   registerSwInDev: process.env.NEXT_PUBLIC_SW_IN_DEV === '1',
+  /**
+   * Optional CDN origin for the sound-library tracks. Empty by default,
+   * which serves the bundled `public/audio/*` files — set this to move
+   * playback to real hosted masters without touching `SOUND_LIBRARY` itself.
+   */
+  audioBaseUrl: (process.env.NEXT_PUBLIC_AUDIO_BASE_URL ?? '').replace(/\/$/, ''),
 } as const;
 
 export const isBrowser = typeof window !== 'undefined';

@@ -4,13 +4,16 @@
   "private": true,
   "description": "آفرت — اپلیکیشن جامع سلامت مادر و زن (PWA + TWA)",
   "workspaces": [
+    "packages/core",
     "apps/web",
     "apps/realtime"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/web",
-    "dev:realtime": "npm run dev --workspace=apps/realtime",
-    "build": "npm run build --workspace=apps/web",
+    "postinstall": "npm run build --workspace=packages/core",
+    "dev": "npm run build --workspace=packages/core && npm run dev --workspace=apps/web",
+    "dev:realtime": "npm run build --workspace=packages/core && npm run dev --workspace=apps/realtime",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=apps/web",
+    "build:realtime": "npm run build --workspace=packages/core && npm run build --workspace=apps/realtime",
     "start": "npm run start --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web",
     "typecheck": "npm run typecheck --workspaces --if-present"

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { MessageSquareText, UserRound } from 'lucide-react';
+import { HeartPulse, MessageSquareText, UserRound } from 'lucide-react';
 
 import { IconBadge } from '@/components/ui';
 import { formatFaRelative, toFaDigits } from '@/lib/persian';
 import { cn } from '@/lib/utils';
 
 import { JOURNEY_LABELS, RISK_FLAG_LABELS, type DoctorPatient, type RiskFlag } from '../types';
+import { PatientVitalsDrawer } from './PatientVitalsDrawer';
 import { PrescriptionModal } from './PrescriptionModal';
 import { RiskFlagBadge } from './RiskFlagBadge';
 
@@ -23,6 +24,7 @@ export function PatientCard({
 }) {
   const [showFlags, setShowFlags] = useState(false);
   const [showPrescription, setShowPrescription] = useState(false);
+  const [showVitals, setShowVitals] = useState(false);
 
   return (
     <li
@@ -66,6 +68,14 @@ export function PatientCard({
         <div className="flex gap-1.5">
           <button
             type="button"
+            onClick={() => setShowVitals(true)}
+            aria-label="گزارش سلامت"
+            className="afrat-tap flex items-center justify-center rounded-pill bg-primary/10 px-2.5 py-1.5 text-primary-deep"
+          >
+            <HeartPulse className="size-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
             onClick={() => setShowPrescription(true)}
             className="afrat-tap rounded-pill bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary-deep"
           >
@@ -107,6 +117,14 @@ export function PatientCard({
           patientName={patient.displayName}
           roomId={patient.roomId}
           onClose={() => setShowPrescription(false)}
+        />
+      ) : null}
+
+      {showVitals ? (
+        <PatientVitalsDrawer
+          patientId={patient.id}
+          patientName={patient.displayName}
+          onClose={() => setShowVitals(false)}
         />
       ) : null}
     </li>

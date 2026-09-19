@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@afrat/core": "*",
     "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^10.1.0",
     "@fastify/rate-limit": "^10.3.0",

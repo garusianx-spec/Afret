@@ -3,6 +3,12 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  // @afrat/core ships compiled output (`npm run build --workspace=packages/core`)
+  // consumed like any other workspace package — see packages/core/package.json.
+  // Still needs an explicit opt-in because Next excludes node_modules from
+  // its loader by default.
+  transpilePackages: ['@afrat/core'],
+
   // The Persian font is a variable WOFF2 served from /fonts; keep it immutable.
   async headers() {
     return [

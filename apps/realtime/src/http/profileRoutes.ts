@@ -1,3 +1,4 @@
+import { clinicalSyncPayloadSchema } from '@afrat/core';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -9,6 +10,8 @@ const journeySchema = z.object({
   journeyMode: z.enum(['cycle', 'ttc', 'pregnancy', 'postpartum']),
   journeyWeek: z.number().int().min(0).max(300).optional(),
 });
+
+const sharingSchema = z.object({ enabled: z.boolean() });
 
 /**
  * Self-reported lifecycle stage.
@@ -70,6 +73,63 @@ export async function profileRoutes(app: FastifyInstance) {
       );
 
       return reply.code(201).send(room);
+    },
+  );
+
+  /**
+   * The consent switch for clinical vitals sync. Turning it on does not by
+   * itself send any reading — the device pushes a snapshot separately via
+   * PUT /api/profile/vitals, and only while this flag is true (see there).
+   * Turning it off immediately deletes whatever was stored: data
+   * minimization means an opt-out actually erases the data, not just stops
+   * refreshing it.
+   */
+  app.patch(
+    '/api/profile/vitals-sharing',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = sharingSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'اطلاعات ارسالی معتبر نیست.' });
+      }
+
+      await userStore.update(request.authUser!.id, { vitalsSharingEnabled: parsed.data.enabled });
+      if (!parsed.data.enabled) {
+        await userStore.update(request.authUser!.id, { sharedVitals: undefined });
+      }
+
+      return reply.code(204).send();
+    },
+  );
+
+  /**
+   * The actual snapshot: her most recent blood-pressure, glucose, and
+   * weight readings, sent only after she has opted in. The server
+   * re-checks the flag itself rather than trusting the client to have
+   * checked it — a stale UI or a replayed request must not be able to
+   * write data for an account that has the switch off.
+   */
+  app.put(
+    '/api/profile/vitals',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = clinicalSyncPayloadSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'اطلاعات ارسالی معتبر نیست.' });
+      }
+
+      const user = await userStore.findById(request.authUser!.id);
+      if (!user?.vitalsSharingEnabled) {
+        return reply
+          .code(403)
+          .send({ message: 'اشتراک‌گذاری گزارش سلامت غیرفعال است.' });
+      }
+
+      await userStore.update(user.id, {
+        sharedVitals: { readings: parsed.data.readings, updatedAt: new Date().toISOString() },
+      });
+
+      return reply.code(204).send();
     },
   );
 }
